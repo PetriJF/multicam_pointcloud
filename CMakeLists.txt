@@ -5,20 +5,42 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
+# Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
-## ADD BUILD RULES FOR CMAKE HERE
+# Include directories
+include_directories(
+  ${PROJECT_SOURCE_DIR}/includes
+  ${OpenCV_INCLUDE_DIRS}
+  /home/edward/librealsense/include
+)
 
-add_executable(example_cpp_node src/example_cpp_node.cpp)
-ament_target_dependencies(example_cpp_node rclcpp)
+# Link directories
+link_directories(/home/edward/librealsense/lib)
 
+# Add executable
+add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
+
+# Link the libraries
+target_link_libraries(realsense_multicam_node
+  ${OpenCV_LIBS}
+  realsense2
+)
+
+# Dependencies for ament
+ament_target_dependencies(realsense_multicam_node
+  rclcpp
+  sensor_msgs
+  cv_bridge
+)
+
+# Install executable
 install(TARGETS
-  example_cpp_node
+  realsense_multicam_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
