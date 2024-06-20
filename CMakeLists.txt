@@ -11,24 +11,25 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(realsense2 REQUIRED)  # Add this line to find librealsense
 
-# Include directories
-include_directories(
-  ${PROJECT_SOURCE_DIR}/includes
-  ${OpenCV_INCLUDE_DIRS}
-  /home/edward/librealsense/include
-)
-
-# Link directories
-link_directories(/home/edward/librealsense/lib)
+# Define project directories
+set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
 
 # Add executable
 add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
 
+# Include directories
+include_directories(
+  ${PROJECT_INCLUDE_DIR}
+  ${OpenCV_INCLUDE_DIRS}
+  ${realsense2_INCLUDE_DIRS}
+)
+
 # Link the libraries
 target_link_libraries(realsense_multicam_node
   ${OpenCV_LIBS}
-  realsense2
+  ${realsense2_LIBRARY}
 )
 
 # Dependencies for ament
