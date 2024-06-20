@@ -48,6 +48,12 @@ ament_target_dependencies(toggle_client_test
   std_srvs
 )
 
+# Install launch files
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 # Install executable
 install(TARGETS
   realsense_multicam_node
