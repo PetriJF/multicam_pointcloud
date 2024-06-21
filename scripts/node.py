@@ -5,7 +5,7 @@ from multicam_pointcloud.runner import MyNode
 
 def main(args = None):
     rclpy.init(args = args)
-    node = MyNode
+    node = MyNode()
     rclpy.spin(node)
     rclpy.shutdown()
 
