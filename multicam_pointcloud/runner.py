@@ -4,12 +4,12 @@ import rclpy
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 
+import math
 import os, yaml
 
 class MyNode(Node):
     def __init__(self):
         super().__init__('runner_node')
-        self.get_logger().info('Test')
 
         # Relevant directory and file names
         self.directory_ = os.path.join(
@@ -18,11 +18,126 @@ class MyNode(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
-        self.form_sequence('RING_7_3', 100)
+        self.final_sequence = ''
 
-    def form_sequence(self, pattern: str, steps_mm: int):
-        plant_grid = self.form_grid(pattern)
-        self.save_to_yaml(plant_grid, '/home/farmbotdev/FarmBot_ROS2/src/multicam_pointcloud/multicam_pointcloud/', 'plants.yaml')
+        self.get_logger().info(
+        '''
+            This is the main control point for the 3-Camera setup. This system
+            can only be controlled from here (can NOT be controlled from the
+            keyboard controller).\n
+            List of commands:
+                * 'FORM' = creates the sequence needed to control everything
+                * Commands that are the same as in the keyboard_controller:
+                    - 'e'
+                    - 'E'
+                    - 'C_0'
+                    - 'CONF'
+                    - 'H_0'
+        ''')
+
+    def controller(self):
+        valid_cmds = [
+            'FORM',
+            'PRINT',
+            'e', 'E', 'C_0', 'CONF', 'H_0'
+        ]
+        
+        user_input = input('\nEnter command: ')
+
+        if user_input in valid_cmds:
+            if user_input == 'FORM':
+                self.final_sequence = self.form_sequence('RING_7_3', 200, 450)
+            elif user_input == 'PRINT':
+                self.get_logger().info(self.final_sequence)
+            elif user_input == 'RUN':
+                self.get_logger().info("Running the 3-Camera Imager sequence!")
+                # Add the info to a timer and go through it
+                
+        else:
+            self.get_logger().warning('Command not recognized')
+
+
+    def form_sequence(self, pattern: str, steps_mm: int, d_offset: int) -> str:
+        plant_grid, max_x, max_y = self.form_grid(pattern)
+        #self.save_to_yaml(plant_grid, '/home/farmbotdev/FarmBot_ROS2/src/multicam_pointcloud/multicam_pointcloud/', 'plants.yaml')
+
+        def modify_coords(coords, value, x_min, x_max, y_min, y_max):
+            return [
+                [
+                    min(max(x + value[0], x_min), x_max), 
+                    min(max(y + value[1], y_min), y_max)
+                ] for x, y in coords
+            ]
+
+
+        def get_row_sequence(coords, step) -> str:
+            sub_sequence = ''
+            
+            if len(coords) < 2:
+                return ''
+            
+            x_1, y_1 = coords[0]
+            x_2, y_2 = coords[1]
+            
+            # Calculate the Euclidean distance between the two points
+            dist = math.sqrt((x_2 - x_1)**2 + (y_2 - y_1)**2)
+            # Initialize travel distance and step counter
+            travel = 0
+            n = 0
+            
+            while travel < dist:
+                # Calculate current step's x and y positions
+                x_curr = x_1 + (n * step / dist) * (x_2 - x_1)
+                y_curr = y_1 + (n * step / dist) * (y_2 - y_1)
+                            
+                # Move to the given coordinate
+                sub_sequence += 'CC_3_Cam\n'
+                sub_sequence += f'{x_curr} {y_curr} {0.0}\n'
+                # Take the 3 pictures
+                sub_sequence += 'VC_3_Cam\n'
+                sub_sequence += 'TAKE\n'
+
+                # Increment travel distance and step counter
+                travel += step
+                n += 1
+            
+            # Print the last point if it hasn't been printed yet
+            if travel != dist:
+                sub_sequence += 'CC_3_Cam\n'
+                sub_sequence += f'{x_curr} {y_curr} {0.0}\n'
+                sub_sequence += 'VC_3_Cam\n'
+                sub_sequence += 'TAKE\n'
+            
+            # Recursively call the function for the remaining points
+            return sub_sequence + get_row_sequence(coords[1:], step)
+
+        first_row_key = -1
+        coords_to_hit = []
+
+        sequence = ''
+        for key in plant_grid:
+            if first_row_key == -1:
+                first_row_key = int(key)
+
+            coords_to_hit.append([plant_grid[key]['position']['x'], plant_grid[key]['position']['y']])
+            #self.get_logger().info(f"Plant index {str(plant_grid[key]['index'])}")
+            if plant_grid[key]['row_last']:
+                #self.get_logger().info('Reached the end')
+
+                # Rotate the servo to the left side of the fence
+                sequence += 'SC_3_Cam\n180.0\n'
+                # Record the plants on on side
+                sequence += get_row_sequence(modify_coords(coords_to_hit, [-d_offset, 0.0], 0.0, max_x, 0.0, max_y), steps_mm)
+                # Rotate the servo to the right side of the fence
+                sequence += 'SC_3_Cam\n0.0\n'
+                # Record the plants on the other side
+                sequence += get_row_sequence(modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y), steps_mm)
+
+                #self.get_logger().info(str(coords_to_hit))
+                coords_to_hit.clear()
+                first_row_key = -1
+        
+        return sequence
 
 
     def form_grid(self, pattern: str) -> dict:
@@ -77,7 +192,7 @@ class MyNode(Node):
             self.get_logger().error('Pattern not recognized!')
         
         # Convert sorted list back to dictionary with adjusted keys starting from 1
-        return {index: plant for index, plant in enumerate(temp, start=1)}
+        return {index: plant for index, plant in enumerate(temp, start=1)}, map_instance['map_reference']['x_len'], map_instance['map_reference']['y_len']
     
 
     def retrieve_map(self, directory = '', file_name = ''):
