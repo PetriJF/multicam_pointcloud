@@ -3,6 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
+from std_msgs.msg import String
 
 import math
 import os, yaml
@@ -18,7 +19,9 @@ class MyNode(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
+        self.msg_ = String()
         self.final_sequence = ''
+        self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
 
         self.get_logger().info(
         '''
@@ -27,6 +30,8 @@ class MyNode(Node):
             keyboard controller).\n
             List of commands:
                 * 'FORM' = creates the sequence needed to control everything
+                * 'PRINT' = prints out the formed sequence
+                * 'RUN' = sends the sequence to the sequence manager
                 * Commands that are the same as in the keyboard_controller:
                     - 'e'
                     - 'E'
@@ -39,6 +44,7 @@ class MyNode(Node):
         valid_cmds = [
             'FORM',
             'PRINT',
+            'RUN',
             'e', 'E', 'C_0', 'CONF', 'H_0'
         ]
         
@@ -51,8 +57,11 @@ class MyNode(Node):
                 self.get_logger().info(self.final_sequence)
             elif user_input == 'RUN':
                 self.get_logger().info("Running the 3-Camera Imager sequence!")
-                # Add the info to a timer and go through it
-                
+            elif user_input in ['e', 'E', 'C_0', 'CONF', 'H_0']:
+                self.msg_.data = user_input
+                self.input_pub_.publish(self.msg_)
+            else:
+                self.get_logger().error('Not Implemeted!')
         else:
             self.get_logger().warning('Command not recognized')
 
