@@ -18,6 +18,9 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
 
 # Add executable
 add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
+add_executable(toggle_client_test src/toggle_client_test.cpp)
+
+find_package(std_srvs REQUIRED)
 
 # Include directories
 include_directories(
@@ -37,11 +40,18 @@ ament_target_dependencies(realsense_multicam_node
   rclcpp
   sensor_msgs
   cv_bridge
+  std_srvs
+)
+
+ament_target_dependencies(toggle_client_test
+  rclcpp
+  std_srvs
 )
 
 # Install executable
 install(TARGETS
   realsense_multicam_node
+  toggle_client_test
   DESTINATION lib/${PROJECT_NAME}
 )
 

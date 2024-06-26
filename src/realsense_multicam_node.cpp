@@ -1,8 +1,10 @@
-// src/realsense_multicam_node.cpp
-
 #include "multicam_pointcloud/realsense_multicam_node.hpp"
+#include <std_srvs/srv/trigger.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/msg/image.hpp>
+#include <rclcpp/rclcpp.hpp>
 
-RealSenseMultiCameraNode::RealSenseMultiCameraNode() : Node("realsense_multi_camera")
+RealSenseMultiCameraNode::RealSenseMultiCameraNode() : Node("realsense_multi_camera"), streams_paused_(false)
 {
     setup_camera();
     RCLCPP_INFO(this->get_logger(), "RealSense Multi Camera Node initialized...");
@@ -10,14 +12,26 @@ RealSenseMultiCameraNode::RealSenseMultiCameraNode() : Node("realsense_multi_cam
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(200),  // 5 FPS
         std::bind(&RealSenseMultiCameraNode::capture_and_publish, this));
+
+    toggle_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "toggle_camera_streams",
+        std::bind(&RealSenseMultiCameraNode::toggle_camera_streams, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 RealSenseMultiCameraNode::~RealSenseMultiCameraNode()
 {
+    // Stop the timer
+    if (timer_) {
+        timer_->cancel();
+    }
+
+    // Stop all pipelines
     for (auto &pipe : pipelines_)
     {
         pipe.stop();
     }
+
+    RCLCPP_INFO(this->get_logger(), "RealSense Multi Camera Node shutting down...");
 }
 
 void RealSenseMultiCameraNode::setup_camera()
@@ -51,6 +65,10 @@ void RealSenseMultiCameraNode::setup_camera()
 
 void RealSenseMultiCameraNode::capture_and_publish()
 {
+    if (streams_paused_) {
+        return;
+    }
+
     for (const auto &pair : serial_to_pipeline_)
     {
         const std::string &serial = pair.first;
@@ -88,11 +106,22 @@ void RealSenseMultiCameraNode::capture_and_publish()
     }
 }
 
+void RealSenseMultiCameraNode::toggle_camera_streams([[maybe_unused]] const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    streams_paused_ = !streams_paused_;
+    response->success = true;
+    response->message = streams_paused_ ? "Camera streams paused" : "Camera streams resumed";
+    RCLCPP_INFO(this->get_logger(), response->message.c_str());
+}
+
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<RealSenseMultiCameraNode>();
-    rclcpp::spin(node);
+    {
+        auto node = std::make_shared<RealSenseMultiCameraNode>();
+        rclcpp::spin(node);
+    }
     rclcpp::shutdown();
     return 0;
 }
