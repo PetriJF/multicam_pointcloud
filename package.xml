@@ -7,8 +7,10 @@
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>OpenCV</depend>
@@ -18,6 +20,11 @@
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+
+  <exec_depend>farmbot_controllers</exec_depend>
+  <exec_depend>farmbot_command_handler</exec_depend>
+  <exec_depend>farmbot_interfaces</exec_depend>
+  <exec_depend>map_handler</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
