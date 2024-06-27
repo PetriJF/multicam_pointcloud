@@ -2,7 +2,7 @@
 
 ToggleClientTest::ToggleClientTest() : Node("toggle_client_test")
 {
-    client_ = this->create_client<std_srvs::srv::Trigger>("toggle_camera_streams");
+    client_ = this->create_client<farmbot_interfaces::srv::StringRepReq>("toggle_camera_streams");
 
     // Send the request immediately
     send_request();
@@ -17,7 +17,7 @@ void ToggleClientTest::send_request()
 {
     RCLCPP_INFO(this->get_logger(), "Sending toggle request");
 
-    auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto request = std::make_shared<farmbot_interfaces::srv::StringRepReq::Request>();
 
     if (!client_->wait_for_service(std::chrono::seconds(10))) {
         RCLCPP_ERROR(this->get_logger(), "Service not available after waiting");
@@ -32,7 +32,7 @@ void ToggleClientTest::send_request()
         if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future, std::chrono::seconds(10)) == rclcpp::FutureReturnCode::SUCCESS)
         {
             auto response = future.get();
-            RCLCPP_INFO(this->get_logger(), "Response: %s", response->message.c_str());
+            RCLCPP_INFO(this->get_logger(), "Response: %s", response->data.c_str());
         }
         else
         {

@@ -2,7 +2,7 @@
 #define TOGGLE_CLIENT_TEST_HPP_
 
 #include <rclcpp/rclcpp.hpp>
-#include <std_srvs/srv/trigger.hpp>
+#include "farmbot_interfaces/srv/string_rep_req.hpp"
 
 class ToggleClientTest : public rclcpp::Node
 {
@@ -13,7 +13,7 @@ public:
 private:
     void send_request();
 
-    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr client_;
+    rclcpp::Client<farmbot_interfaces::srv::StringRepReq>::SharedPtr client_;
 };
 
 #endif  // TOGGLE_CLIENT_TEST_HPP_

@@ -1,5 +1,4 @@
 #include "multicam_pointcloud/realsense_multicam_node.hpp"
-#include <std_srvs/srv/trigger.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/msg/image.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -12,10 +11,14 @@ RealSenseMultiCameraNode::RealSenseMultiCameraNode() : Node("realsense_multi_cam
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(200),  // 5 FPS
         std::bind(&RealSenseMultiCameraNode::capture_and_publish, this));
+    
+    RCLCPP_INFO(this->get_logger(), "Wall timer created...");
 
-    toggle_service_ = this->create_service<std_srvs::srv::Trigger>(
+    toggle_service_ = this->create_service<farmbot_interfaces::srv::StringRepReq>(
         "toggle_camera_streams",
         std::bind(&RealSenseMultiCameraNode::toggle_camera_streams, this, std::placeholders::_1, std::placeholders::_2));
+
+    RCLCPP_INFO(this->get_logger(), "Service created...");
 }
 
 RealSenseMultiCameraNode::~RealSenseMultiCameraNode()
@@ -28,7 +31,7 @@ RealSenseMultiCameraNode::~RealSenseMultiCameraNode()
     // Stop all pipelines
     for (auto &pipe : pipelines_)
     {
-        pipe.stop();
+        pipe->stop();
     }
 
     RCLCPP_INFO(this->get_logger(), "RealSense Multi Camera Node shutting down...");
@@ -36,43 +39,59 @@ RealSenseMultiCameraNode::~RealSenseMultiCameraNode()
 
 void RealSenseMultiCameraNode::setup_camera()
 {
-    rs2::context ctx;
-    std::vector<std::string> serials;
-    for (auto &&dev : ctx.query_devices())
+    try
     {
-        std::string serial = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
-        serials.push_back(serial);
-        RCLCPP_INFO(this->get_logger(), "Connected camera serial number: %s", serial.c_str());
+        rs2::context ctx;
+        std::vector<std::string> serials;
+        for (auto &&dev : ctx.query_devices())
+        {
+            std::string serial = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+            serials.push_back(serial);
+            RCLCPP_INFO(this->get_logger(), "Connected camera serial number: %s", serial.c_str());
+        }
+
+        for (const auto &serial : serials)
+        {
+            auto pipe = std::make_shared<rs2::pipeline>(ctx);
+            rs2::config cfg;
+            cfg.enable_device(serial);
+            cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 5);
+            cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 5);
+            pipe->start(cfg);
+            pipelines_.push_back(pipe);
+            serial_to_pipeline_[serial] = pipe;
+
+            auto rgb_publisher = this->create_publisher<sensor_msgs::msg::Image>("rgb_" + serial, 10);
+            auto depth_publisher = this->create_publisher<sensor_msgs::msg::Image>("depth_" + serial, 10);
+            rgb_publishers_[serial] = rgb_publisher;
+            depth_publishers_[serial] = depth_publisher;
+
+            RCLCPP_INFO(this->get_logger(), "Camera %s setup complete", serial.c_str());
+        }
     }
-
-    for (const auto &serial : serials)
+    catch (const rs2::error &e)
     {
-        rs2::pipeline *pipe = new rs2::pipeline(ctx);
-        rs2::config cfg;
-        cfg.enable_device(serial);
-        cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 5);
-        cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 5);
-        pipe->start(cfg);
-        pipelines_.push_back(*pipe);
-        serial_to_pipeline_[serial] = pipe;
-
-        auto rgb_publisher = this->create_publisher<sensor_msgs::msg::Image>("rgb_" + serial, 10);
-        auto depth_publisher = this->create_publisher<sensor_msgs::msg::Image>("depth_" + serial, 10);
-        rgb_publishers_[serial] = rgb_publisher;
-        depth_publishers_[serial] = depth_publisher;
+        RCLCPP_ERROR(this->get_logger(), "RealSense error: %s", e.what());
+    }
+    catch (const std::exception &e)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Error: %s", e.what());
     }
 }
 
 void RealSenseMultiCameraNode::capture_and_publish()
 {
     if (streams_paused_) {
+        RCLCPP_INFO(this->get_logger(), "Streams are paused...");
         return;
     }
+
+    RCLCPP_INFO(this->get_logger(), "Capturing and publishing frames...");
 
     for (const auto &pair : serial_to_pipeline_)
     {
         const std::string &serial = pair.first;
-        rs2::pipeline *pipe = pair.second;
+        auto pipe = pair.second;
 
         rs2::frameset frames = pipe->wait_for_frames();
 
@@ -92,10 +111,6 @@ void RealSenseMultiCameraNode::capture_and_publish()
         cv::Mat color(cv::Size(color_frame.get_width(), color_frame.get_height()), CV_8UC3, (void *)color_frame.get_data(), cv::Mat::AUTO_STEP);
         cv::Mat depth(cv::Size(depth_frame.get_width(), depth_frame.get_height()), CV_16U, (void *)depth_frame.get_data(), cv::Mat::AUTO_STEP);
 
-        // Save images to disk
-        cv::imwrite("rgb_" + serial + ".png", color);
-        cv::imwrite("depth_" + serial + ".png", depth);
-
         // Publish images
         auto rgb_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", color).toImageMsg();
         auto depth_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "mono16", depth).toImageMsg();
@@ -106,13 +121,12 @@ void RealSenseMultiCameraNode::capture_and_publish()
     }
 }
 
-void RealSenseMultiCameraNode::toggle_camera_streams([[maybe_unused]] const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-                                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+void RealSenseMultiCameraNode::toggle_camera_streams([[maybe_unused]] const std::shared_ptr<farmbot_interfaces::srv::StringRepReq::Request> request,
+                                                     std::shared_ptr<farmbot_interfaces::srv::StringRepReq::Response> response)
 {
     streams_paused_ = !streams_paused_;
-    response->success = true;
-    response->message = streams_paused_ ? "Camera streams paused" : "Camera streams resumed";
-    RCLCPP_INFO(this->get_logger(), response->message.c_str());
+    response->data = "SUCCESS";
+    RCLCPP_INFO(this->get_logger(), response->data.c_str());
 }
 
 int main(int argc, char *argv[])

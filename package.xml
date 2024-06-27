@@ -15,7 +15,6 @@
   <depend>cv_bridge</depend>
   <depend>OpenCV</depend>
   <depend>realsense2</depend>
-  <depend>std_srvs</depend>
   <depend>farmbot_interfaces</depend>
 
 
