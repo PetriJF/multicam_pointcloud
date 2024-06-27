@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import rclpy
-from multicam_pointcloud.runner import MyNode
+from multicam_pointcloud.mcpc_controller import PointCloudController
 
 def main(args = None):
     rclpy.init(args = args)
-    node = MyNode()
+    node = PointCloudController()
      
     try:
         while rclpy.ok():
