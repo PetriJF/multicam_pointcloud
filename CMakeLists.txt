@@ -13,7 +13,8 @@ find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(realsense2 REQUIRED)  # Add this line to find librealsense
+find_package(realsense2 REQUIRED)  # Ensure librealsense2 is found
+find_package(farmbot_interfaces REQUIRED)    # Ensure std_srvs is found
 
 # Define project directories
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
@@ -21,8 +22,6 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
 # Add executable
 add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
 add_executable(toggle_client_test src/toggle_client_test.cpp)
-
-find_package(std_srvs REQUIRED)
 
 # Include directories
 include_directories(
@@ -42,12 +41,12 @@ ament_target_dependencies(realsense_multicam_node
   rclcpp
   sensor_msgs
   cv_bridge
-  std_srvs
+  farmbot_interfaces
 )
 
 ament_target_dependencies(toggle_client_test
   rclcpp
-  std_srvs
+  farmbot_interfaces
 )
 
 # Install launch files
