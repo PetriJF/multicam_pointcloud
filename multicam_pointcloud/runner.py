@@ -23,6 +23,8 @@ class MyNode(Node):
         self.final_sequence = ''
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
 
+        self.sequencer_pub_ = self.create_publisher(String, 'sequencer', 10)
+
         self.get_logger().info(
         '''
             This is the main control point for the 3-Camera setup. This system
@@ -68,7 +70,6 @@ class MyNode(Node):
 
     def form_sequence(self, pattern: str, steps_mm: int, d_offset: int) -> str:
         plant_grid, max_x, max_y = self.form_grid(pattern)
-        #self.save_to_yaml(plant_grid, '/home/farmbotdev/FarmBot_ROS2/src/multicam_pointcloud/multicam_pointcloud/', 'plants.yaml')
 
         def modify_coords(coords, value, x_min, x_max, y_min, y_max):
             return [
@@ -104,7 +105,7 @@ class MyNode(Node):
                 sub_sequence += f'{x_curr} {y_curr} {0.0}\n'
                 # Take the 3 pictures
                 sub_sequence += 'VC_3_Cam\n'
-                sub_sequence += 'TAKE\n'
+                sub_sequence += 'M_CAM_TAKE\n'
 
                 # Increment travel distance and step counter
                 travel += step
@@ -115,7 +116,7 @@ class MyNode(Node):
                 sub_sequence += 'CC_3_Cam\n'
                 sub_sequence += f'{x_curr} {y_curr} {0.0}\n'
                 sub_sequence += 'VC_3_Cam\n'
-                sub_sequence += 'TAKE\n'
+                sub_sequence += 'M_CAM_TAKE\n'
             
             # Recursively call the function for the remaining points
             return sub_sequence + get_row_sequence(coords[1:], step)
@@ -133,14 +134,22 @@ class MyNode(Node):
             if plant_grid[key]['row_last']:
                 #self.get_logger().info('Reached the end')
 
+                # Get the coordinates for capturing the images
+                coords = modify_coords(coords_to_hit, [-d_offset, 0.0], 0.0, max_x, 0.0, max_y)
+                # Rotate the servo in a safe area
+                sequence += f'CC_3_Cam\n{coords[0][0]} {coords[0][1]} 0.0\n'
                 # Rotate the servo to the left side of the fence
                 sequence += 'SC_3_Cam\n180.0\n'
                 # Record the plants on on side
-                sequence += get_row_sequence(modify_coords(coords_to_hit, [-d_offset, 0.0], 0.0, max_x, 0.0, max_y), steps_mm)
+                sequence += get_row_sequence(coords, steps_mm)
+                # Get the coordinates for capturing the images
+                coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
+                # Rotate the servo in a safe area
+                sequence += f'CC_3_Cam\n{coords[0][0]} {coords[0][1]} 0.0\n'
                 # Rotate the servo to the right side of the fence
                 sequence += 'SC_3_Cam\n0.0\n'
                 # Record the plants on the other side
-                sequence += get_row_sequence(modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y), steps_mm)
+                sequence += get_row_sequence(coords, steps_mm)
 
                 #self.get_logger().info(str(coords_to_hit))
                 coords_to_hit.clear()
