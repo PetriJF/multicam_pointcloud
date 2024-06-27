@@ -16,6 +16,7 @@
   <depend>OpenCV</depend>
   <depend>realsense2</depend>
   <depend>std_srvs</depend>
+  <depend>farmbot_interfaces</depend>
 
 
   <test_depend>ament_lint_auto</test_depend>
@@ -23,7 +24,6 @@
 
   <exec_depend>farmbot_controllers</exec_depend>
   <exec_depend>farmbot_command_handler</exec_depend>
-  <exec_depend>farmbot_interfaces</exec_depend>
   <exec_depend>map_handler</exec_depend>
 
   <export>
