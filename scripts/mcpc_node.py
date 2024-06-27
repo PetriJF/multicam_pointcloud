@@ -4,6 +4,7 @@ import rclpy
 from multicam_pointcloud.mcpc_controller import PointCloudController
 
 def main(args = None):
+    # MCPC Python Node installer
     rclpy.init(args = args)
     node = PointCloudController()
      

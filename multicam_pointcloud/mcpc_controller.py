@@ -9,6 +9,10 @@ import math
 import os, yaml
 
 class PointCloudController(Node):
+    '''
+    Acts as the main controller for forming the command sequence and controlling
+    the multipoint cloud image acquisition software.
+    '''
     def __init__(self):
         super().__init__('mcpc_controller')
 
@@ -69,9 +73,20 @@ class PointCloudController(Node):
 
 
     def form_sequence(self, pattern: str, steps_mm: int, d_offset: int) -> str:
+        '''
+        Forms the sequence for capturing images of each plant row at given
+        intervals
+        Args:
+            pattern {str}: pattern to form the grid by
+            steps_mm {int}: increment between capture positions
+            d_offset {offset between toolhead center and horizontal camera}
+        '''
         plant_grid, max_x, max_y = self.form_grid(pattern)
 
         def modify_coords(coords, value, x_min, x_max, y_min, y_max):
+            '''
+            Maps the coordinates based on the map dimensions and d-offset.
+            '''
             return [
                 [
                     min(max(x + value[0], x_min), x_max), 
@@ -80,7 +95,11 @@ class PointCloudController(Node):
             ]
 
 
-        def get_row_sequence(coords, step) -> str:
+        def get_row_sequence(coords: list, step: int) -> str:
+            '''
+            Forms the sequence for the coordinates by moving from point to point
+            in the given step increments.
+            '''
             sub_sequence = ''
             
             if len(coords) < 2:
@@ -130,7 +149,6 @@ class PointCloudController(Node):
                 first_row_key = int(key)
 
             coords_to_hit.append([plant_grid[key]['position']['x'], plant_grid[key]['position']['y']])
-            #self.get_logger().info(f"Plant index {str(plant_grid[key]['index'])}")
             if plant_grid[key]['row_last']:
                 #self.get_logger().info('Reached the end')
 
@@ -159,6 +177,15 @@ class PointCloudController(Node):
 
 
     def form_grid(self, pattern: str) -> dict:
+        '''
+        Based on the information from the active map instance,
+        a grid plan for going from plant to plant according to
+        the given pattern is formed.
+
+        Args:
+            pattern {str}: pattern to follow (GRID or RING)
+        '''
+        
         # Load the map information from the config file
         map_instance = self.retrieve_map(self.directory_, self.active_map_file_)
 
