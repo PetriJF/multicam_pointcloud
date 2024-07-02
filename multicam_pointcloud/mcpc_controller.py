@@ -62,6 +62,8 @@ class PointCloudController(Node):
             elif user_input == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input == 'RUN':
+                self.msg_.data = self.final_sequence
+                self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info("Running the 3-Camera Imager sequence!")
             elif user_input in ['e', 'E', 'C_0', 'CONF', 'H_0']:
                 self.msg_.data = user_input

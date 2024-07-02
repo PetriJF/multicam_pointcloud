@@ -13,8 +13,8 @@ find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(realsense2 REQUIRED)  # Ensure librealsense2 is found
-find_package(farmbot_interfaces REQUIRED)    # Ensure std_srvs is found
+find_package(realsense2 REQUIRED)
+find_package(farmbot_interfaces REQUIRED)
 
 # Define project directories
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
@@ -55,20 +55,19 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Install executable
+# Install C++ executables
 install(TARGETS
   realsense_multicam_node
   toggle_client_test
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install Python modules
-ament_python_install_package(${PROJECT_NAME})
-
-# Install Python executables
+# Install Python executable
 install(PROGRAMS
-  scripts/mcpc_node.py
+  multicam_pointcloud/cam_subscriber.py
   DESTINATION lib/${PROJECT_NAME}
 )
+
+ament_python_install_package(${PROJECT_NAME})
 
 ament_package()
