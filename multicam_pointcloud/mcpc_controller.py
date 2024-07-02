@@ -58,7 +58,7 @@ class PointCloudController(Node):
 
         if user_input in valid_cmds:
             if user_input == 'FORM':
-                self.final_sequence = self.form_sequence('RING_7_3', 200, 450)
+                self.final_sequence = self.form_sequence('RING_7_3', 100, 50)
             elif user_input == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input == 'RUN':
@@ -76,8 +76,7 @@ class PointCloudController(Node):
 
     def form_sequence(self, pattern: str, steps_mm: int, d_offset: int) -> str:
         '''
-        Forms the sequence for capturing images of each plant row at given
-        intervals
+        Forms the sequence for capturing images of each plant row at given intervals.
         Args:
             pattern {str}: pattern to form the grid by
             steps_mm {int}: increment between capture positions
@@ -95,7 +94,6 @@ class PointCloudController(Node):
                     min(max(y + value[1], y_min), y_max)
                 ] for x, y in coords
             ]
-
 
         def get_row_sequence(coords: list, step: int) -> str:
             '''
@@ -152,15 +150,13 @@ class PointCloudController(Node):
 
             coords_to_hit.append([plant_grid[key]['position']['x'], plant_grid[key]['position']['y']])
             if plant_grid[key]['row_last']:
-                #self.get_logger().info('Reached the end')
-
                 # Get the coordinates for capturing the images
                 coords = modify_coords(coords_to_hit, [-d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the left side of the fence
                 sequence += 'SC_3_Cam\n180.0\n'
-                # Record the plants on on side
+                # Record the plants on one side
                 sequence += get_row_sequence(coords, steps_mm)
                 # Get the coordinates for capturing the images
                 coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
@@ -171,12 +167,10 @@ class PointCloudController(Node):
                 # Record the plants on the other side
                 sequence += get_row_sequence(coords, steps_mm)
 
-                #self.get_logger().info(str(coords_to_hit))
                 coords_to_hit.clear()
                 first_row_key = -1
         
         return sequence
-
 
     def form_grid(self, pattern: str) -> dict:
         '''
@@ -187,7 +181,7 @@ class PointCloudController(Node):
         Args:
             pattern {str}: pattern to follow (GRID or RING)
         '''
-        
+
         # Load the map information from the config file
         map_instance = self.retrieve_map(self.directory_, self.active_map_file_)
 
@@ -205,42 +199,38 @@ class PointCloudController(Node):
                 }
                 tomato_plants[plant_info['identifiers']['index']] = plant
 
-        # Sort the list of dictionaries based on 'position'['x']. Note that the dictionary read above is
-        # converted to a list of dictionaries
+        # Sort the list of dictionaries based on 'position'['x']
         sorted_tomato_plants_list = sorted(list(tomato_plants.values()), key=lambda x: x['position']['x'])
         
         # Get the pattern dimensions
         _, N, M = pattern.split('_')
         N = int(N)
         M = int(M)
-        
-        # Adding the first row of the ring pattern
-        temp = sorted(sorted_tomato_plants_list[0:M], key=lambda y: y['position']['y'])
-        temp[M-1]['row_last'] = True
 
-        if pattern.startswith('RING_'):
-            # Adding the middle N-2 rows of the ring pattern
-            for row in range(0, N-2):
-                temp.extend(sorted(sorted_tomato_plants_list[M+row*2:M+row*2+2], key=lambda y: y['position']['y']))
-                temp[M+row*2+1]['row_last'] = True
+        required_plants = N * M
+
+        # Check if there are enough plants to fill the grid
+        if len(sorted_tomato_plants_list) < required_plants:
+            self.get_logger().warning('Not enough plants to form the specified grid pattern. Using available plants.')
+
+        # Form the grid with the available plants
+        temp = []
+        for row in range(N):
+            start_index = row * M
+            end_index = start_index + M
+            row_plants = sorted(sorted_tomato_plants_list[start_index:end_index], key=lambda y: y['position']['y'])
             
-            # Adding the Nth row of the ring pattern
-            temp.extend(sorted(sorted_tomato_plants_list[M+(N-2)*2: M*2+(N-2)*2], key=lambda y: y['position']['y']))
-            temp[M*2+(N-2)*2 - 1]['row_last'] = True
-        elif pattern.startswith('GRID_'):
-            # Adding the middle N-2 rows of the grid pattern
-            for row in range(0, N-2):
-                temp.extend(sorted(sorted_tomato_plants_list[M+row*M:M+row*M+M], key=lambda y: y['position']['y']))
-                temp[M*2+row*M-1]['row_last'] = True
-            # Adding the Nth row of the grid pattern
-            temp.extend(sorted(sorted_tomato_plants_list[M+(N-2)*M: M+(N-2)*M+M], key=lambda y: y['position']['y']))
-            temp[-1]['row_last'] = True
-        else:
-            self.get_logger().error('Pattern not recognized!')
-        
+            if row_plants:
+                row_plants[-1]['row_last'] = True
+                temp.extend(row_plants)
+            
+            if end_index >= len(sorted_tomato_plants_list):
+                break
+
         # Convert sorted list back to dictionary with adjusted keys starting from 1
         return {index: plant for index, plant in enumerate(temp, start=1)}, map_instance['map_reference']['x_len'], map_instance['map_reference']['y_len']
-    
+
+
 
     def retrieve_map(self, directory = '', file_name = ''):
         '''

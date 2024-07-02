@@ -53,6 +53,12 @@ def generate_launch_description():
             name='realsense_multicam_node',
             output='screen'
         ),
+        Node(
+            package='multicam_pointcloud',
+            executable='cam_subscriber.py',
+            name='cam_subscriber',
+            output='screen'
+        ),
         
         # Delay for 10 seconds
         TimerAction(
