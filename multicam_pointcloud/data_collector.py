@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import cv2
 import numpy as np
 import os
@@ -11,13 +10,13 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 
-class CameraSubscriber(Node):
+class CamDataCollector(Node):
     def __init__(self, node_name, use_rz_inv):
         super().__init__(node_name)
         self.use_rz_inv = use_rz_inv
         
         # Configuration
-        self.config_directory = os.path.join(get_package_share_directory('camera_handler'), 'config')
+        self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
         self.camera_config_file = 'rs_405_camera_config.yaml'
         self.config_data = self.load_from_yaml(self.config_directory, self.camera_config_file)
         
@@ -33,7 +32,7 @@ class CameraSubscriber(Node):
             self.create_subscription(Image, f'/rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
             self.create_subscription(Image, f'/depth_{cam_id}', self.depth_callback_factory(cam_id), 10)
         
-        self.get_logger().info("CameraSubscriber node has been initialized")
+        self.get_logger().info("CamDataCollector node has been initialized")
 
     def load_from_yaml(self, path, file_name):
         full_path = os.path.join(path, file_name)
@@ -92,19 +91,3 @@ class CameraSubscriber(Node):
         # Save image
         cv2.imwrite(os.path.join(directory, filename), image)
         self.get_logger().info(f'Saved {img_type} image from camera {cam_id} as {filename}')
-    
-def main(args=None):
-    rclpy.init(args=args)
-    use_rz_inv = False  # Set this based on your input
-    camera_subscriber = CameraSubscriber('cam_subscriber', use_rz_inv)
-    
-    try:
-        rclpy.spin(camera_subscriber)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        camera_subscriber.destroy_node()
-        rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()

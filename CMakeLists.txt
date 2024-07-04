@@ -55,6 +55,12 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Install configuration files
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}/config
+)
+
 # Install executable
 install(TARGETS
   realsense_multicam_node
@@ -67,9 +73,8 @@ ament_python_install_package(${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
-  multicam_pointcloud/cam_subscriber.py
+  scripts/data_collection_node.py
   scripts/mcpc_node.py
-  multicam_pointcloud/mcpc_controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_package()

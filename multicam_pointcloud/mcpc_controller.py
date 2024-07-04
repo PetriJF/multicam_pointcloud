@@ -207,29 +207,32 @@ class PointCloudController(Node):
         N = int(N)
         M = int(M)
 
-        required_plants = N * M
+        # Adding the first row of the ring pattern
+        temp = sorted(sorted_tomato_plants_list[0:M], key=lambda y: y['position']['y'])
+        temp[M-1]['row_last'] = True
 
-        # Check if there are enough plants to fill the grid
-        if len(sorted_tomato_plants_list) < required_plants:
-            self.get_logger().warning('Not enough plants to form the specified grid pattern. Using available plants.')
+        if pattern.startswith('RING_'):
+            # Adding the middle N-2 rows of the ring pattern
+            for row in range(0, N-2):
+                temp.extend(sorted(sorted_tomato_plants_list[M+row*2:M+row*2+2], key=lambda y: y['position']['y']))
+                temp[M+row*2+1]['row_last'] = True
 
-        # Form the grid with the available plants
-        temp = []
-        for row in range(N):
-            start_index = row * M
-            end_index = start_index + M
-            row_plants = sorted(sorted_tomato_plants_list[start_index:end_index], key=lambda y: y['position']['y'])
-            
-            if row_plants:
-                row_plants[-1]['row_last'] = True
-                temp.extend(row_plants)
-            
-            if end_index >= len(sorted_tomato_plants_list):
-                break
+            # Adding the Nth row of the ring pattern
+            temp.extend(sorted(sorted_tomato_plants_list[M+(N-2)*2: M*2+(N-2)*2], key=lambda y: y['position']['y']))
+            temp[M*2+(N-2)*2 - 1]['row_last'] = True
+        elif pattern.startswith('GRID_'):
+            # Adding the middle N-2 rows of the grid pattern
+            for row in range(0, N-2):
+                temp.extend(sorted(sorted_tomato_plants_list[M+row*M:M+row*M+M], key=lambda y: y['position']['y']))
+                temp[M*2+row*M-1]['row_last'] = True
+            # Adding the Nth row of the grid pattern
+            temp.extend(sorted(sorted_tomato_plants_list[M+(N-2)*M: M+(N-2)*M+M], key=lambda y: y['position']['y']))
+            temp[-1]['row_last'] = True
+        else:
+            self.get_logger().error('Pattern not recognized!')
 
         # Convert sorted list back to dictionary with adjusted keys starting from 1
         return {index: plant for index, plant in enumerate(temp, start=1)}, map_instance['map_reference']['x_len'], map_instance['map_reference']['y_len']
-
 
 
     def retrieve_map(self, directory = '', file_name = ''):

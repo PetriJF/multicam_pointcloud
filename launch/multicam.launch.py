@@ -55,14 +55,14 @@ def generate_launch_description():
         ),
         Node(
             package='multicam_pointcloud',
-            executable='cam_subscriber.py',
-            name='cam_subscriber',
+            executable='data_collection_node.py',
+            name='data_collector',
             output='screen'
         ),
         
-        # Delay for 10 seconds
+        # Delay for 15 seconds
         TimerAction(
-            period=10.0,
+            period=15.0,
             actions=[
                 # Start uart_controller after the delay
                 Node(
