@@ -26,6 +26,8 @@ class CamDataCollector(Node):
         self.rgb_images = {}
         self.depth_images = {}
         
+        self.get_logger().info(str(self.config_data))
+
         # Create subscriptions for image topics
         self.cam_ids = self.config_data['camera_ids']
         for cam_id in self.cam_ids:
