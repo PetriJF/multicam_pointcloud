@@ -4,44 +4,55 @@
 // #include <rclcpp/rclcpp.hpp>
 
 
-#include "multicam_pointcloud/realsense_multicam_node.hpp"
+#include "realsense_multicam_node.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/msg/image.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-RealSenseMultiCameraNode::RealSenseMultiCameraNode() : Node("realsense_multi_camera"), frames_captured_(false)
-{
+RealSenseMultiCameraNode::RealSenseMultiCameraNode() : Node("realsense_multi_camera"), frames_captured_(false) {
     setup_camera();
     RCLCPP_INFO(this->get_logger(), "RealSense Multi Camera Node initialized...");
 
     read_frames_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(200),  // 5 FPS
-        std::bind(&RealSenseMultiCameraNode::read_frames, this));
+        std::bind(&RealSenseMultiCameraNode::read_frames, this)
+    );
 
     RCLCPP_INFO(this->get_logger(), "Wall timer for reading frames created...");
 
     toggle_service_ = this->create_service<farmbot_interfaces::srv::StringRepReq>(
         "multicam_toggle",
-        std::bind(&RealSenseMultiCameraNode::handle_service, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&RealSenseMultiCameraNode::handle_service, this, std::placeholders::_1, std::placeholders::_2)    
+    );
 
     RCLCPP_INFO(this->get_logger(), "Service created...");
 }
 
-void RealSenseMultiCameraNode::setup_camera()
-{
-    try
-    {
+RealSenseMultiCameraNode::~RealSenseMultiCameraNode() {
+    // Stop all pipelines
+    // Stop all pipelines
+    for (auto &pair : serial_to_pipeline_) {
+        auto pipe = pair.second;
+        pipe->stop();
+    }
+
+    RCLCPP_INFO(this->get_logger(), "RealSense Multi Camera Node shutting down...");
+}
+
+void RealSenseMultiCameraNode::setup_camera() {
+    try {
+        int iter_a = 0, iter_b = 0;
+        
         rs2::context ctx;
         std::vector<std::string> serials;
-        for (auto &&dev : ctx.query_devices())
-        {
+        for (auto &&dev : ctx.query_devices()) {
             std::string serial = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
             serials.push_back(serial);
             RCLCPP_INFO(this->get_logger(), "Connected camera serial number: %s", serial.c_str());
+            iter_a++;
         }
 
-        for (const auto &serial : serials)
-        {
+        for (const auto &serial : serials) {
             auto pipe = std::make_shared<rs2::pipeline>(ctx);
             rs2::config cfg;
             cfg.enable_device(serial);
@@ -56,22 +67,24 @@ void RealSenseMultiCameraNode::setup_camera()
             depth_publishers_[serial] = depth_publisher;
 
             RCLCPP_INFO(this->get_logger(), "Camera %s setup complete", serial.c_str());
+            iter_b++;
         }
+
+        if (iter_a == iter_b && iter_a == 0)
+            RCLCPP_ERROR(this->get_logger(), "ERROR: NO CAMERAS DETECTED");
+        else if (iter_a != iter_b)
+            RCLCPP_ERROR(this->get_logger(), "ERROR: Devices found: %s, Devices loaded %s", std::to_string(iter_a).c_str(), std::to_string(iter_b).c_str());
     }
-    catch (const rs2::error &e)
-    {
+    catch (const rs2::error &e) {
         RCLCPP_ERROR(this->get_logger(), "RealSense error: %s", e.what());
     }
-    catch (const std::exception &e)
-    {
+    catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error: %s", e.what());
     }
 }
 
-void RealSenseMultiCameraNode::read_frames()
-{
-    for (const auto &pair : serial_to_pipeline_)
-    {
+void RealSenseMultiCameraNode::read_frames() {
+    for (const auto &pair : serial_to_pipeline_) {
         const std::string &serial = pair.first;
         auto pipe = pair.second;
 
@@ -80,8 +93,7 @@ void RealSenseMultiCameraNode::read_frames()
         rs2::video_frame color_frame = frames.get_color_frame();
         rs2::depth_frame depth_frame = frames.get_depth_frame();
 
-        if (!color_frame || !depth_frame)
-        {
+        if (!color_frame || !depth_frame) {
             RCLCPP_WARN(this->get_logger(), "Incomplete frames received from camera %s", serial.c_str());
             continue;
         }
@@ -97,19 +109,15 @@ void RealSenseMultiCameraNode::read_frames()
 }
 
 void RealSenseMultiCameraNode::handle_service(const std::shared_ptr<farmbot_interfaces::srv::StringRepReq::Request> request,
-                                              std::shared_ptr<farmbot_interfaces::srv::StringRepReq::Response> response)
-{
-    if (request->data == "TAKE")
-    {
-        if (!frames_captured_)
-        {
+                                              std::shared_ptr<farmbot_interfaces::srv::StringRepReq::Response> response) {
+    if (request->data == "TAKE") {
+        if (!frames_captured_) {
             RCLCPP_WARN(this->get_logger(), "Frames have not been captured yet.");
             response->data = "FAILED";
             return;
         }
 
-        for (const auto &pair : color_frames_)
-        {
+        for (const auto &pair : color_frames_) {
             const std::string &serial = pair.first;
             const cv::Mat &color = pair.second;
             const cv::Mat &depth = depth_frames_[serial];
@@ -123,17 +131,13 @@ void RealSenseMultiCameraNode::handle_service(const std::shared_ptr<farmbot_inte
         }
 
         response->data = "SUCCESS";
-    }
-    else
-    {
+    } else
         response->data = "FAILED";
-    }
 
     RCLCPP_INFO(this->get_logger(), "Service response: %s", response->data.c_str());
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
     {
         auto node = std::make_shared<RealSenseMultiCameraNode>();

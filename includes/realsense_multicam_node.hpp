@@ -49,6 +49,7 @@ class RealSenseMultiCameraNode : public rclcpp::Node
 {
 public:
     RealSenseMultiCameraNode();
+    ~RealSenseMultiCameraNode();
 
 private:
     void setup_camera();

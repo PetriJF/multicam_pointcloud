@@ -62,7 +62,7 @@ def generate_launch_description():
         
         # Delay for 15 seconds
         TimerAction(
-            period=15.0,
+            period=60.0,
             actions=[
                 # Start uart_controller after the delay
                 Node(

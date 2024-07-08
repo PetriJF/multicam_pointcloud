@@ -6,9 +6,10 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Pose
+from datetime import datetime
 
 class CamDataCollector(Node):
     def __init__(self, node_name, use_rz_inv):
@@ -19,9 +20,12 @@ class CamDataCollector(Node):
         self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
         self.camera_config_file = 'rs_405_camera_config.yaml'
         self.config_data = self.load_from_yaml(self.config_directory, self.camera_config_file)
-        
-        self.robot_pose = Pose()
-        
+     
+        # Robot EE position
+        self.cur_x_ = 0.0
+        self.cur_y_ = 0.0
+        self.cur_z_ = 0.0
+
         self.bridge = CvBridge()
         self.rgb_images = {}
         self.depth_images = {}
@@ -31,10 +35,27 @@ class CamDataCollector(Node):
         # Create subscriptions for image topics
         self.cam_ids = self.config_data['camera_ids']
         for cam_id in self.cam_ids:
-            self.create_subscription(Image, f'/rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
-            self.create_subscription(Image, f'/depth_{cam_id}', self.depth_callback_factory(cam_id), 10)
+            self.create_subscription(Image, f'rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
+            self.create_subscription(Image, f'depth_{cam_id}', self.depth_callback_factory(cam_id), 10)
+            self.get_logger().info(f'Initializing Topics /rgb_{cam_id} and /depth_{cam_id}')
         
+        # UART Rx Subscriber
+        self.uart_rx_sub_ = self.create_subscription(String, 'uart_receive', self.uart_feedback_callback, 10)
+
         self.get_logger().info("CamDataCollector node has been initialized")
+
+    def uart_feedback_callback(self, msg: String):
+        '''
+        Takes the feedback from the Serial Receiver and updates
+        information accordingly 
+        '''
+        msgSplit = (msg.data).split(' ')
+        reportCode = msgSplit[0]
+
+        if reportCode == 'R82':
+            self.cur_x_ = float(msgSplit[1][1:])
+            self.cur_y_ = float(msgSplit[2][1:])
+            self.cur_z_ = float(msgSplit[3][1:])
 
     def load_from_yaml(self, path, file_name):
         full_path = os.path.join(path, file_name)
@@ -71,9 +92,9 @@ class CamDataCollector(Node):
         cam_config = self.get_camera_config(cam_id)
         
         # Get robot position and offsets
-        x = self.robot_pose.position.x + cam_config['offset_x']
-        y = self.robot_pose.position.y + cam_config['offset_y']
-        z = self.robot_pose.position.z + cam_config['offset_z']
+        x = self.cur_x_ + cam_config['offset_x']
+        y = self.cur_y_ + cam_config['offset_y']
+        z = self.cur_z_ + cam_config['offset_z']
         
         # Get rotation
         rx = cam_config['rx']
@@ -81,10 +102,11 @@ class CamDataCollector(Node):
         rz = cam_config['rz'] if not self.use_rz_inv else cam_config['rz_inv']
         
         # Timestamp
-        timestamp = self.get_clock().now().to_msg().sec
+        now = datetime.now()
+        timestamp = now.strftime("%d_%m_%Y_%H_%M_%S")
         
         # Filename
-        filename = f"{img_type}_cam{cam_id}_{timestamp}_{x:.2f}_{y:.2f}_{z:.2f}_{rx:.2f},{ry:.2f},{rz:.2f}.png"
+        filename = f"{img_type}_cam{cam_id}_{timestamp}_{x:.1f}_{y:.1f}_{z:.1f}_X{rx:.1f}_Y{ry:.1f}_Z{rz:.1f}.png"
         
         # Directory
         directory = os.path.join(self.config_directory, 'images')

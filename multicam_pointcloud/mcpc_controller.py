@@ -58,7 +58,7 @@ class PointCloudController(Node):
 
         if user_input in valid_cmds:
             if user_input == 'FORM':
-                self.final_sequence = self.form_sequence('RING_7_3', 100, 50)
+                self.final_sequence = self.form_sequence('RING_7_3', 45, 50)
             elif user_input == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input == 'RUN':
@@ -74,7 +74,7 @@ class PointCloudController(Node):
             self.get_logger().warning('Command not recognized')
 
 
-    def form_sequence(self, pattern: str, steps_mm: int, d_offset: int) -> str:
+    def form_sequence(self, pattern: str, steps_mm: int, d_offset: int, servo_pin = 4) -> str:
         '''
         Forms the sequence for capturing images of each plant row at given intervals.
         Args:
@@ -114,7 +114,7 @@ class PointCloudController(Node):
             travel = 0
             n = 0
             
-            while travel < dist:
+            while travel <= dist:
                 # Calculate current step's x and y positions
                 x_curr = x_1 + (n * step / dist) * (x_2 - x_1)
                 y_curr = y_1 + (n * step / dist) * (y_2 - y_1)
@@ -155,15 +155,18 @@ class PointCloudController(Node):
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the left side of the fence
-                sequence += 'SC_3_Cam\n180.0\n'
+                sequence += f'SC_3_Cam\n{servo_pin} 180.0\n'
                 # Record the plants on one side
                 sequence += get_row_sequence(coords, steps_mm)
-                # Get the coordinates for capturing the images
-                coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the right side of the fence
-                sequence += 'SC_3_Cam\n0.0\n'
+                sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
+                # Get the coordinates for capturing the images
+                coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
+                
+                # Move to the other side
+                sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Record the plants on the other side
                 sequence += get_row_sequence(coords, steps_mm)
 
