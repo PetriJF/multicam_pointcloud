@@ -35,7 +35,7 @@ class PointCloudController(Node):
             can only be controlled from here (can NOT be controlled from the
             keyboard controller).\n
             List of commands:
-                * 'FORM' = creates the sequence needed to control everything
+                * 'FORM_I_J_DIST' = creates the sequence needed to control everything
                 * 'PRINT' = prints out the formed sequence
                 * 'RUN' = sends the sequence to the sequence manager
                 * Commands that are the same as in the keyboard_controller:
@@ -55,18 +55,22 @@ class PointCloudController(Node):
         ]
         
         user_input = input('\nEnter command: ')
+        user_input_split = user_input.split(' ')
 
-        if user_input in valid_cmds:
-            if user_input == 'FORM':
-                self.final_sequence = self.form_sequence('RING_7_3', 45, 50)
-            elif user_input == 'PRINT':
+        if user_input_split[0] in valid_cmds:
+            if user_input_split[0] == 'FORM' and len(user_input_split) == 4:
+                rows = user_input_split[1]
+                cols = user_input_split[2]
+                incr = int(user_input_split[3])
+                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', incr, 50)
+            elif user_input_split[0] == 'PRINT':
                 self.get_logger().info(self.final_sequence)
-            elif user_input == 'RUN':
+            elif user_input_split[0] == 'RUN':
                 self.msg_.data = self.final_sequence
                 self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info("Running the 3-Camera Imager sequence!")
-            elif user_input in ['e', 'E', 'C_0', 'CONF', 'H_0']:
-                self.msg_.data = user_input
+            elif user_input_split[0] in ['e', 'E', 'C_0', 'CONF', 'H_0']:
+                self.msg_.data = user_input_split[0]
                 self.input_pub_.publish(self.msg_)
             else:
                 self.get_logger().error('Not Implemeted!')
