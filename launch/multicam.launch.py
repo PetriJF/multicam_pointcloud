@@ -53,10 +53,16 @@ def generate_launch_description():
             name='realsense_multicam_node',
             output='screen'
         ),
+        Node(
+            package='multicam_pointcloud',
+            executable='data_collection_node.py',
+            name='data_collector',
+            output='screen'
+        ),
         
-        # Delay for 10 seconds
+        # Delay for 15 seconds
         TimerAction(
-            period=10.0,
+            period=60.0,
             actions=[
                 # Start uart_controller after the delay
                 Node(

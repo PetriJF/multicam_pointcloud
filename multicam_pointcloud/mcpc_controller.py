@@ -35,7 +35,7 @@ class PointCloudController(Node):
             can only be controlled from here (can NOT be controlled from the
             keyboard controller).\n
             List of commands:
-                * 'FORM' = creates the sequence needed to control everything
+                * 'FORM_I_J_DIST' = creates the sequence needed to control everything
                 * 'PRINT' = prints out the formed sequence
                 * 'RUN' = sends the sequence to the sequence manager
                 * Commands that are the same as in the keyboard_controller:
@@ -55,16 +55,22 @@ class PointCloudController(Node):
         ]
         
         user_input = input('\nEnter command: ')
+        user_input_split = user_input.split(' ')
 
-        if user_input in valid_cmds:
-            if user_input == 'FORM':
-                self.final_sequence = self.form_sequence('RING_7_3', 200, 450)
-            elif user_input == 'PRINT':
+        if user_input_split[0] in valid_cmds:
+            if user_input_split[0] == 'FORM' and len(user_input_split) == 4:
+                rows = user_input_split[1]
+                cols = user_input_split[2]
+                incr = int(user_input_split[3])
+                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', incr, 50)
+            elif user_input_split[0] == 'PRINT':
                 self.get_logger().info(self.final_sequence)
-            elif user_input == 'RUN':
+            elif user_input_split[0] == 'RUN':
+                self.msg_.data = self.final_sequence
+                self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info("Running the 3-Camera Imager sequence!")
-            elif user_input in ['e', 'E', 'C_0', 'CONF', 'H_0']:
-                self.msg_.data = user_input
+            elif user_input_split[0] in ['e', 'E', 'C_0', 'CONF', 'H_0']:
+                self.msg_.data = user_input_split[0]
                 self.input_pub_.publish(self.msg_)
             else:
                 self.get_logger().error('Not Implemeted!')
@@ -72,10 +78,9 @@ class PointCloudController(Node):
             self.get_logger().warning('Command not recognized')
 
 
-    def form_sequence(self, pattern: str, steps_mm: int, d_offset: int) -> str:
+    def form_sequence(self, pattern: str, steps_mm: int, d_offset: int, servo_pin = 4) -> str:
         '''
-        Forms the sequence for capturing images of each plant row at given
-        intervals
+        Forms the sequence for capturing images of each plant row at given intervals.
         Args:
             pattern {str}: pattern to form the grid by
             steps_mm {int}: increment between capture positions
@@ -93,7 +98,6 @@ class PointCloudController(Node):
                     min(max(y + value[1], y_min), y_max)
                 ] for x, y in coords
             ]
-
 
         def get_row_sequence(coords: list, step: int) -> str:
             '''
@@ -114,7 +118,7 @@ class PointCloudController(Node):
             travel = 0
             n = 0
             
-            while travel < dist:
+            while travel <= dist:
                 # Calculate current step's x and y positions
                 x_curr = x_1 + (n * step / dist) * (x_2 - x_1)
                 y_curr = y_1 + (n * step / dist) * (y_2 - y_1)
@@ -150,31 +154,30 @@ class PointCloudController(Node):
 
             coords_to_hit.append([plant_grid[key]['position']['x'], plant_grid[key]['position']['y']])
             if plant_grid[key]['row_last']:
-                #self.get_logger().info('Reached the end')
-
                 # Get the coordinates for capturing the images
                 coords = modify_coords(coords_to_hit, [-d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the left side of the fence
-                sequence += 'SC_3_Cam\n180.0\n'
-                # Record the plants on on side
+                sequence += f'SC_3_Cam\n{servo_pin} 180.0\n'
+                # Record the plants on one side
                 sequence += get_row_sequence(coords, steps_mm)
-                # Get the coordinates for capturing the images
-                coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the right side of the fence
-                sequence += 'SC_3_Cam\n0.0\n'
+                sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
+                # Get the coordinates for capturing the images
+                coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
+                
+                # Move to the other side
+                sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Record the plants on the other side
                 sequence += get_row_sequence(coords, steps_mm)
 
-                #self.get_logger().info(str(coords_to_hit))
                 coords_to_hit.clear()
                 first_row_key = -1
         
         return sequence
-
 
     def form_grid(self, pattern: str) -> dict:
         '''
@@ -185,7 +188,7 @@ class PointCloudController(Node):
         Args:
             pattern {str}: pattern to follow (GRID or RING)
         '''
-        
+
         # Load the map information from the config file
         map_instance = self.retrieve_map(self.directory_, self.active_map_file_)
 
@@ -203,15 +206,14 @@ class PointCloudController(Node):
                 }
                 tomato_plants[plant_info['identifiers']['index']] = plant
 
-        # Sort the list of dictionaries based on 'position'['x']. Note that the dictionary read above is
-        # converted to a list of dictionaries
+        # Sort the list of dictionaries based on 'position'['x']
         sorted_tomato_plants_list = sorted(list(tomato_plants.values()), key=lambda x: x['position']['x'])
         
         # Get the pattern dimensions
         _, N, M = pattern.split('_')
         N = int(N)
         M = int(M)
-        
+
         # Adding the first row of the ring pattern
         temp = sorted(sorted_tomato_plants_list[0:M], key=lambda y: y['position']['y'])
         temp[M-1]['row_last'] = True
@@ -221,7 +223,7 @@ class PointCloudController(Node):
             for row in range(0, N-2):
                 temp.extend(sorted(sorted_tomato_plants_list[M+row*2:M+row*2+2], key=lambda y: y['position']['y']))
                 temp[M+row*2+1]['row_last'] = True
-            
+
             # Adding the Nth row of the ring pattern
             temp.extend(sorted(sorted_tomato_plants_list[M+(N-2)*2: M*2+(N-2)*2], key=lambda y: y['position']['y']))
             temp[M*2+(N-2)*2 - 1]['row_last'] = True
@@ -235,10 +237,10 @@ class PointCloudController(Node):
             temp[-1]['row_last'] = True
         else:
             self.get_logger().error('Pattern not recognized!')
-        
+
         # Convert sorted list back to dictionary with adjusted keys starting from 1
         return {index: plant for index, plant in enumerate(temp, start=1)}, map_instance['map_reference']['x_len'], map_instance['map_reference']['y_len']
-    
+
 
     def retrieve_map(self, directory = '', file_name = ''):
         '''

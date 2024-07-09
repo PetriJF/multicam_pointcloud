@@ -1,4 +1,4 @@
-#include "multicam_pointcloud/toggle_client_test.hpp"
+#include "toggle_client_test.hpp"
 
 ToggleClientTest::ToggleClientTest() : Node("toggle_client_test")
 {
