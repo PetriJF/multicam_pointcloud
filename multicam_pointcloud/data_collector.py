@@ -26,6 +26,9 @@ class CamDataCollector(Node):
         self.cur_y_ = 0.0
         self.cur_z_ = 0.0
 
+        # Servo position
+        self.servo_pos = 0.0
+
         self.bridge = CvBridge()
         self.rgb_images = {}
         self.depth_images = {}
@@ -56,6 +59,11 @@ class CamDataCollector(Node):
             self.cur_x_ = float(msgSplit[1][1:])
             self.cur_y_ = float(msgSplit[2][1:])
             self.cur_z_ = float(msgSplit[3][1:])
+        elif reportCode == 'R08':
+            data_between_stars = (' '.join(msgSplit[1:]).split('*')[1]).split(' ')
+            # Check if servo command was received
+            if data_between_stars[0] == 'F61':
+                self.servo_pos = float(data_between_stars[2][1:])
 
     def load_from_yaml(self, path, file_name):
         full_path = os.path.join(path, file_name)
@@ -99,7 +107,7 @@ class CamDataCollector(Node):
         # Get rotation
         rx = cam_config['rx']
         ry = cam_config['ry']
-        rz = cam_config['rz'] if not self.use_rz_inv else cam_config['rz_inv']
+        rz = cam_config['rz'] if not self.servo_pos else cam_config['rz_inv']
         
         # Timestamp
         now = datetime.now()
