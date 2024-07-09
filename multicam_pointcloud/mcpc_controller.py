@@ -62,7 +62,7 @@ class PointCloudController(Node):
                 rows = user_input_split[1]
                 cols = user_input_split[2]
                 incr = int(user_input_split[3])
-                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', incr, 50)
+                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', incr, 395.7)
             elif user_input_split[0] == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input_split[0] == 'RUN':
