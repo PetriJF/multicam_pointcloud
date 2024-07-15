@@ -23,6 +23,8 @@ class PointCloudController(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
+        self.ROW_Y_SWITCH_OFFSET = 110.0
+
         self.msg_ = String()
         self.final_sequence = ''
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
@@ -35,7 +37,7 @@ class PointCloudController(Node):
             can only be controlled from here (can NOT be controlled from the
             keyboard controller).\n
             List of commands:
-                * 'FORM_I_J_DIST' = creates the sequence needed to control everything
+                * 'FORM_I_J_DIST_SIDE' = creates the sequence needed to control everything
                 * 'PRINT' = prints out the formed sequence
                 * 'RUN' = sends the sequence to the sequence manager
                 * Commands that are the same as in the keyboard_controller:
@@ -58,11 +60,19 @@ class PointCloudController(Node):
         user_input_split = user_input.split(' ')
 
         if user_input_split[0] in valid_cmds:
-            if user_input_split[0] == 'FORM' and len(user_input_split) == 4:
+            if user_input_split[0] == 'FORM' and len(user_input_split) == 5:
                 rows = user_input_split[1]
                 cols = user_input_split[2]
                 incr = int(user_input_split[3])
-                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', incr, 395.7)
+                turn = bool(int(user_input_split[4]))
+                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = 395.7)
+            elif user_input_split[0] == 'FORM' and len(user_input_split) == 6:
+                rows = user_input_split[1]
+                cols = user_input_split[2]
+                incr = int(user_input_split[3])
+                turn = bool(int(user_input_split[4]))
+                dOff = float(user_input_split[5])
+                self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff)
             elif user_input_split[0] == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input_split[0] == 'RUN':
@@ -78,13 +88,15 @@ class PointCloudController(Node):
             self.get_logger().warning('Command not recognized')
 
 
-    def form_sequence(self, pattern: str, steps_mm: int, d_offset: int, servo_pin = 4) -> str:
+    def form_sequence(self, pattern: str, steps_mm: int, turn_side: bool, d_offset: int, servo_pin = 4) -> str:
         '''
         Forms the sequence for capturing images of each plant row at given intervals.
         Args:
-            pattern {str}: pattern to form the grid by
-            steps_mm {int}: increment between capture positions
-            d_offset {offset between toolhead center and horizontal camera}
+            pattern   {str} : pattern to form the grid by.
+            steps_mm  {int} : increment between capture positions.
+            d_offset  {int} : offset between toolhead center and horizontal camera.
+            turn_side {bool}: side on which the unit should attempt to move between rows.
+            servo_pin {int} : the pin to which the servo is connected.
         '''
         plant_grid, max_x, max_y = self.form_grid(pattern)
 
@@ -162,17 +174,33 @@ class PointCloudController(Node):
                 sequence += f'SC_3_Cam\n{servo_pin} 180.0\n'
                 # Record the plants on one side
                 sequence += get_row_sequence(coords, steps_mm)
-                # Rotate the servo in a safe area
-                sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
-                # Rotate the servo to the right side of the fence
-                sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
-                # Get the coordinates for capturing the images
-                coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                 
-                # Move to the other side
-                sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
-                # Record the plants on the other side
-                sequence += get_row_sequence(coords, steps_mm)
+                # Move the the other side of the row
+                if not turn_side:
+                    # Rotate the servo in a safe area
+                    sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                    # Rotate the servo to the right side of the fence
+                    sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
+                    # Get the coordinates for capturing the images
+                    coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
+                    # Move to the other side
+                    sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                    # Record the plants on the other side
+                    sequence += get_row_sequence(coords, steps_mm)
+                else: 
+                    # Move as close to the end of the y-axis as possible
+                    sequence += f'CC_3_Cam\n{coords[0][0]} {max_y - self.ROW_Y_SWITCH_OFFSET} 0.0\n'
+                    # Get the coordinates for capturing the images
+                    coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
+                    # Move to the other side
+                    sequence += f'CC_3_Cam\n{coords[0][0]} {max_y - self.ROW_Y_SWITCH_OFFSET} 0.0\n'
+                    # Move to the start of the row
+                    sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                    # Rotate the servo to the right side of the fence
+                    sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
+                    # Record the plants on the other side
+                    sequence += get_row_sequence(coords, steps_mm)
+                
 
                 coords_to_hit.clear()
                 first_row_key = -1
