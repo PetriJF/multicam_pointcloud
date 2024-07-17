@@ -122,8 +122,18 @@ void RealSenseMultiCameraNode::handle_service(const std::shared_ptr<farmbot_inte
             const cv::Mat &color = pair.second;
             const cv::Mat &depth = depth_frames_[serial];
 
-            auto rgb_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", color).toImageMsg();
-            auto depth_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "mono16", depth).toImageMsg();
+            // Rotate color image upside down
+            cv::Mat rotated_color;
+            cv::rotate(color, rotated_color, cv::ROTATE_180);
+
+            // Rotate depth image upside down
+            cv::Mat rotated_depth;
+            cv::rotate(depth, rotated_depth, cv::ROTATE_180);
+
+            // Convert rotated images to ROS messages
+            auto rgb_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", rotated_color).toImageMsg();
+            auto depth_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "mono16", rotated_depth).toImageMsg();
+
             rgb_publishers_[serial]->publish(*rgb_msg);
             depth_publishers_[serial]->publish(*depth_msg);
 

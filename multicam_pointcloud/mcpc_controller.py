@@ -23,7 +23,7 @@ class PointCloudController(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
-        self.ROW_Y_SWITCH_OFFSET = 110.0
+        self.ROW_Y_SWITCH_OFFSET = 195.0
 
         self.msg_ = String()
         self.final_sequence = ''
@@ -171,7 +171,7 @@ class PointCloudController(Node):
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the left side of the fence
-                sequence += f'SC_3_Cam\n{servo_pin} 180.0\n'
+                sequence += f'SC_3_Cam\n{servo_pin} 138.0\n'
                 # Record the plants on one side
                 sequence += get_row_sequence(coords, steps_mm)
                 
@@ -180,7 +180,7 @@ class PointCloudController(Node):
                     # Rotate the servo in a safe area
                     sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                     # Rotate the servo to the right side of the fence
-                    sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
+                    sequence += f'SC_3_Cam\n{servo_pin} 8.0\n'
                     # Get the coordinates for capturing the images
                     coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                     # Move to the other side
@@ -197,7 +197,7 @@ class PointCloudController(Node):
                     # Move to the start of the row
                     sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                     # Rotate the servo to the right side of the fence
-                    sequence += f'SC_3_Cam\n{servo_pin} 0.0\n'
+                    sequence += f'SC_3_Cam\n{servo_pin} 8.0\n'
                     # Record the plants on the other side
                     sequence += get_row_sequence(coords, steps_mm)
                 
