@@ -107,7 +107,7 @@ class CamDataCollector(Node):
         # Get rotation
         rx = cam_config['rx']
         ry = cam_config['ry']
-        rz = cam_config['rz'] if not self.servo_pos else cam_config['rz_inv']
+        rz = 0 if self.servo_pos == 8 else 180
         
         # Timestamp
         now = datetime.now()
