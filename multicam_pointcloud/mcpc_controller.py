@@ -132,8 +132,8 @@ class PointCloudController(Node):
             
             while travel <= dist:
                 # Calculate current step's x and y positions
-                x_curr = x_1 + (n * step / dist) * (x_2 - x_1)
-                y_curr = y_1 + (n * step / dist) * (y_2 - y_1)
+                x_curr = int(x_1 + (n * step / dist) * (x_2 - x_1))
+                y_curr = int(y_1 + (n * step / dist) * (y_2 - y_1))
                             
                 # Move to the given coordinate
                 sub_sequence += 'CC_3_Cam\n'
