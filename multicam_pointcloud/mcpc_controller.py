@@ -23,12 +23,17 @@ class PointCloudController(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
-        self.ROW_Y_SWITCH_OFFSET = 195.0
+        config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
+        system_config_file = 'mcpc_system_config.yaml'
+        system_config_data = self.load_from_yaml(config_directory, system_config_file)
+
+        self.servo_0_pos = system_config_data['servo_left_rot']
+        self.servo_180_pos = system_config_data['servo_right_rot']
+        self.ROW_Y_SWITCH_OFFSET = system_config_data['row_y_switch_offset']
 
         self.msg_ = String()
         self.final_sequence = ''
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
-
         self.sequencer_pub_ = self.create_publisher(String, 'sequencer', 10)
 
         self.get_logger().info(
@@ -171,7 +176,7 @@ class PointCloudController(Node):
                 # Rotate the servo in a safe area
                 sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                 # Rotate the servo to the left side of the fence
-                sequence += f'SC_3_Cam\n{servo_pin} 138.0\n'
+                sequence += f'SC_3_Cam\n{servo_pin} {self.servo_180_pos}\n'
                 # Record the plants on one side
                 sequence += get_row_sequence(coords, steps_mm)
                 
@@ -180,7 +185,7 @@ class PointCloudController(Node):
                     # Rotate the servo in a safe area
                     sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                     # Rotate the servo to the right side of the fence
-                    sequence += f'SC_3_Cam\n{servo_pin} 8.0\n'
+                    sequence += f'SC_3_Cam\n{servo_pin} {self.servo_0_pos}\n'
                     # Get the coordinates for capturing the images
                     coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                     # Move to the other side
@@ -197,7 +202,7 @@ class PointCloudController(Node):
                     # Move to the start of the row
                     sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
                     # Rotate the servo to the right side of the fence
-                    sequence += f'SC_3_Cam\n{servo_pin} 8.0\n'
+                    sequence += f'SC_3_Cam\n{servo_pin} {self.servo_0_pos}\n'
                     # Record the plants on the other side
                     sequence += get_row_sequence(coords, steps_mm)
                 

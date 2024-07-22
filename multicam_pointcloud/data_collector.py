@@ -18,25 +18,28 @@ class CamDataCollector(Node):
         
         # Configuration
         self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
-        self.camera_config_file = 'rs_405_camera_config.yaml'
-        self.config_data = self.load_from_yaml(self.config_directory, self.camera_config_file)
-     
+        camera_config_file = 'rs_405_camera_config.yaml'
+        self.cam_config_data = self.load_from_yaml(self.config_directory, camera_config_file)
+        system_config_file = 'mcpc_system_config.yaml'
+        system_config_data = self.load_from_yaml(self.config_directory, system_config_file)
+
         # Robot EE position
         self.cur_x_ = 0.0
         self.cur_y_ = 0.0
         self.cur_z_ = 0.0
 
         # Servo position
-        self.servo_pos = 0.0
+        self.servo_0_pos = system_config_data['servo_left_rot']
+        self.servo_curr_pos = 0.0
 
         self.bridge = CvBridge()
         self.rgb_images = {}
         self.depth_images = {}
         
-        self.get_logger().info(str(self.config_data))
+        self.get_logger().info(str(self.cam_config_data))
 
         # Create subscriptions for image topics
-        self.cam_ids = self.config_data['camera_ids']
+        self.cam_ids = self.cam_config_data['camera_ids']
         for cam_id in self.cam_ids:
             self.create_subscription(Image, f'rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
             self.create_subscription(Image, f'depth_{cam_id}', self.depth_callback_factory(cam_id), 10)
@@ -63,7 +66,7 @@ class CamDataCollector(Node):
             data_between_stars = (' '.join(msgSplit[1:]).split('*')[1]).split(' ')
             # Check if servo command was received
             if data_between_stars[0] == 'F61':
-                self.servo_pos = float(data_between_stars[2][1:])
+                self.servo_curr_pos = float(data_between_stars[2][1:])
 
     def load_from_yaml(self, path, file_name):
         full_path = os.path.join(path, file_name)
@@ -79,7 +82,7 @@ class CamDataCollector(Node):
                 return None
     
     def get_camera_config(self, cam_id):
-        return self.config_data[f'camera_{cam_id}']
+        return self.cam_config_data[f'camera_{cam_id}']
     
     def rgb_callback_factory(self, cam_id):
         def rgb_callback(msg):
@@ -107,7 +110,7 @@ class CamDataCollector(Node):
         # Get rotation
         rx = cam_config['rx']
         ry = cam_config['ry']
-        rz = 0 if self.servo_pos == 8 else 180
+        rz = 0 if self.servo_curr_pos == self.servo_0_pos else 180
         
         # Timestamp
         now = datetime.now()
