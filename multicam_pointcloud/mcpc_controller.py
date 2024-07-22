@@ -142,7 +142,7 @@ class PointCloudController(Node):
                             
                 # Move to the given coordinate
                 sub_sequence += 'CC_3_Cam\n'
-                sub_sequence += f'{x_curr} {y_curr} {0.0}\n'
+                sub_sequence += f'{x_curr} {y_curr} {0}\n'
                 # Take the 3 pictures
                 sub_sequence += 'VC_3_Cam\n'
                 sub_sequence += 'M_CAM_TAKE\n'
@@ -154,7 +154,7 @@ class PointCloudController(Node):
             # Print the last point if it hasn't been printed yet
             if travel != dist:
                 sub_sequence += 'CC_3_Cam\n'
-                sub_sequence += f'{x_curr} {y_curr} {0.0}\n'
+                sub_sequence += f'{x_curr} {y_curr} {0}\n'
                 sub_sequence += 'VC_3_Cam\n'
                 sub_sequence += 'M_CAM_TAKE\n'
             
@@ -174,7 +174,7 @@ class PointCloudController(Node):
                 # Get the coordinates for capturing the images
                 coords = modify_coords(coords_to_hit, [-d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                 # Rotate the servo in a safe area
-                sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                sequence += f'CC_3_Cam\n{int(coords[0][0])} {0} 0\n'
                 # Rotate the servo to the left side of the fence
                 sequence += f'SC_3_Cam\n{servo_pin} {self.servo_180_pos}\n'
                 # Record the plants on one side
@@ -183,24 +183,24 @@ class PointCloudController(Node):
                 # Move the the other side of the row
                 if not turn_side:
                     # Rotate the servo in a safe area
-                    sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                    sequence += f'CC_3_Cam\n{int(coords[0][0])} {0} 0\n'
                     # Rotate the servo to the right side of the fence
                     sequence += f'SC_3_Cam\n{servo_pin} {self.servo_0_pos}\n'
                     # Get the coordinates for capturing the images
                     coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                     # Move to the other side
-                    sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                    sequence += f'CC_3_Cam\n{int(coords[0][0])} {0} 0\n'
                     # Record the plants on the other side
                     sequence += get_row_sequence(coords, steps_mm)
                 else: 
                     # Move as close to the end of the y-axis as possible
-                    sequence += f'CC_3_Cam\n{coords[0][0]} {max_y - self.ROW_Y_SWITCH_OFFSET} 0.0\n'
+                    sequence += f'CC_3_Cam\n{int(coords[0][0])} {int(max_y - self.ROW_Y_SWITCH_OFFSET)} 0\n'
                     # Get the coordinates for capturing the images
                     coords = modify_coords(coords_to_hit, [d_offset, 0.0], 0.0, max_x, 0.0, max_y)
                     # Move to the other side
-                    sequence += f'CC_3_Cam\n{coords[0][0]} {max_y - self.ROW_Y_SWITCH_OFFSET} 0.0\n'
+                    sequence += f'CC_3_Cam\n{int(coords[0][0])} {int(max_y - self.ROW_Y_SWITCH_OFFSET)} 0\n'
                     # Move to the start of the row
-                    sequence += f'CC_3_Cam\n{coords[0][0]} {0.0} 0.0\n'
+                    sequence += f'CC_3_Cam\n{int(coords[0][0])} {0} 0\n'
                     # Rotate the servo to the right side of the fence
                     sequence += f'SC_3_Cam\n{servo_pin} {self.servo_0_pos}\n'
                     # Record the plants on the other side
