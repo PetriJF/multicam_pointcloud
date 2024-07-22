@@ -114,7 +114,7 @@ class CamDataCollector(Node):
         timestamp = now.strftime("%d_%m_%Y_%H_%M_%S")
         
         # Filename
-        filename = f"{img_type}_cam{cam_id}_{timestamp}_{x:.1f}_{y:.1f}_{z:.1f}_X{rx:.1f}_Y{ry:.1f}_Z{rz:.1f}.png"
+        filename = f"{img_type}_cam{cam_id}_{timestamp}_X{x:.1f}_Y{y:.1f}_Z{z:.1f}_RX{rx:.1f}_RY{ry:.1f}_RZ{rz:.1f}.png"
         
         # Directory
         directory = os.path.join(self.config_directory, 'images')
