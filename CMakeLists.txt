@@ -75,6 +75,8 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/data_collection_node.py
   scripts/mcpc_node.py
+  scripts/luxonis_multicam_node.py
+  scripts/luxonis_multicam_subscriber_test.py
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_package()
