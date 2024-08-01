@@ -1,10 +1,24 @@
 import launch
 from launch import LaunchDescription, LaunchService
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.actions import TimerAction
 
 def generate_launch_description():
     return LaunchDescription([
+        # Declare the launch arguments
+        DeclareLaunchArgument(
+            'mcpc_camera',
+            default_value='Intel Realsense D405',
+            description='Camera type for data collection'
+        ),
+        DeclareLaunchArgument(
+            'camera_config_file',
+            default_value='rs_405_camera_config.yaml',
+            description='Configuration file for the camera'
+        ),
+
         Node(
             package='farmbot_controllers',
             executable='param_conf_server',
@@ -57,9 +71,13 @@ def generate_launch_description():
             package='multicam_pointcloud',
             executable='data_collection_node.py',
             name='data_collector',
-            output='screen'
+            output='screen',
+            parameters=[
+                {'mcpc_camera': LaunchConfiguration('mcpc_camera')},
+                {'camera_config_file': LaunchConfiguration('camera_config_file')}
+            ]
         ),
-        
+
         # Delay for 15 seconds
         TimerAction(
             period=60.0,

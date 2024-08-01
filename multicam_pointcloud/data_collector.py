@@ -5,6 +5,7 @@ import os
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
+from farmbot_interfaces.msg import ImageMessage
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 import rclpy
@@ -15,14 +16,29 @@ class CamDataCollector(Node):
     def __init__(self, node_name, use_rz_inv):
         super().__init__(node_name)
         self.use_rz_inv = use_rz_inv
-        
-        # Configuration
+
+        # Determine the cameras being used
+        self.declare_parameter(name = 'mcpc_camera', value = '')
+        self.camera_used_:str = self.get_parameter('mcpc_camera').get_parameter_value().string_value
+        accepted_cameras = ['Luxonis OAK-D Lite', 'Intel Realsense D405']
+        if self.camera_used_ not in accepted_cameras:
+            self.get_logger().error('CAMERA NOT SUPPORTED. Shutting down node')
+            self.destroy_node()
+            rclpy.shutdown()
+
+        # Select camera config file
+        self.declare_parameter(name = 'camera_config_file', value = '')
+        camera_config_file:str = self.get_parameter('camera_config_file').get_parameter_value().string_value
+        if camera_config_file == '':
+            self.get_logger().error('No camera configuration was selected. Shutting down node')
+            self.destroy_node()
+            rclpy.shutdown()
+
+        # Load Configuration
         self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
-        camera_config_file = 'rs_405_camera_config.yaml'
         self.cam_config_data = self.load_from_yaml(self.config_directory, camera_config_file)
         system_config_file = 'mcpc_system_config.yaml'
         system_config_data = self.load_from_yaml(self.config_directory, system_config_file)
-
         # Robot EE position
         self.cur_x_ = 0.0
         self.cur_y_ = 0.0
@@ -41,7 +57,8 @@ class CamDataCollector(Node):
         # Create subscriptions for image topics
         self.cam_ids = self.cam_config_data['camera_ids']
         for cam_id in self.cam_ids:
-            self.create_subscription(Image, f'rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
+            image_topic_type = Image if self.camera_used_ == 'Intel Realsense D405' else ImageMessage
+            self.create_subscription(image_topic_type, f'rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
             self.create_subscription(Image, f'depth_{cam_id}', self.depth_callback_factory(cam_id), 10)
             self.get_logger().info(f'Initializing Topics /rgb_{cam_id} and /depth_{cam_id}')
         
@@ -84,10 +101,27 @@ class CamDataCollector(Node):
     def get_camera_config(self, cam_id):
         return self.cam_config_data[f'camera_{cam_id}']
     
+    # def rgb_callback_factory(self, cam_id):
+    #     def rgb_callback(msg):
+    #         self.rgb_images[cam_id] = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+    #         self.save_image(cam_id, 'rgb')
+    #     return rgb_callback
+
     def rgb_callback_factory(self, cam_id):
         def rgb_callback(msg):
-            self.rgb_images[cam_id] = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            self.save_image(cam_id, 'rgb')
+            if isinstance(msg, Image):
+                cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+                self.rgb_images[cam_id] = cv_image
+                self.save_image(cam_id, 'rgb')
+            elif isinstance(msg, ImageMessage):
+                cv_image = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+                self.rgb_images[cam_id] = cv_image
+                self.save_image(cam_id, 'rgb', focus = msg.focus)
+            else:
+                self.get_logger().warn(f"Unsupported message type for camera {cam_id}")
+                return
+            
+            
         return rgb_callback
     
     def depth_callback_factory(self, cam_id):
@@ -96,7 +130,7 @@ class CamDataCollector(Node):
             self.save_image(cam_id, 'depth')
         return depth_callback
     
-    def save_image(self, cam_id, img_type):
+    def save_image(self, cam_id, img_type, focus: int = -1):
         image = self.rgb_images[cam_id] if img_type == 'rgb' else self.depth_images[cam_id]
         
         # Get camera configuration
@@ -116,8 +150,14 @@ class CamDataCollector(Node):
         now = datetime.now()
         timestamp = now.strftime("%d_%m_%Y_%H_%M_%S")
         
+        # File type
+        file_type = 'png' if self.camera_used_ == 'Intel Realsense D405' else 'jpeg'
+
+        # Focus distance
+        focus_dist = '' if focus == -1 else f'_{focus}'
+        
         # Filename
-        filename = f"{img_type}_cam{cam_id}_{timestamp}_X{x:.1f}_Y{y:.1f}_Z{z:.1f}_RX{rx:.1f}_RY{ry:.1f}_RZ{rz:.1f}.png"
+        filename = f"{img_type}_cam{cam_id}_{timestamp}_X{x:.1f}_Y{y:.1f}_Z{z:.1f}_RX{rx:.1f}_RY{ry:.1f}_RZ{rz:.1f}{focus_dist}.{file_type}"
         
         # Directory
         directory = os.path.join(self.config_directory, 'images')
