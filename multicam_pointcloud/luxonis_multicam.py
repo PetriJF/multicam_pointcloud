@@ -10,6 +10,7 @@ import rclpy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from farmbot_interfaces.msg import ImageMessage
+from farmbot_interfaces.srv import StringRepReq
 from ament_index_python.packages import get_package_share_directory
 
 # Manual focus set step
@@ -45,8 +46,11 @@ class LuxonisMulticam(Node):
         self.rgb_image_ = None
         self.depth_image_ = None
 
-        # Capture depth stacks once for testing
-        self.capture_depth_stacks()
+        # Create service to take images and publish them to the required topics
+        self.luxonis_image_server_ = self.create_service(StringRepReq, 'multicam_toggle', self.capture_depth_stacks_server)
+
+        # FOR DEBUGGING: Capture depth stacks once for testing
+        #self.capture_depth_stacks()
 
         self.get_logger().info('Luxonis Multicam Node initialized...')
         
@@ -135,6 +139,15 @@ class LuxonisMulticam(Node):
     def cleanup(self, devices):
         for device in devices:
             device.close()
+
+    def capture_depth_stacks_server(self, request, response):
+        if request.data == 'TAKE':
+            if 1 > 2:   # TODO add checks here
+                response.data = 'FAILED'
+                return response
+            self.capture_depth_stacks()
+            response.data == 'SUCCESS'
+            return response
 
     def capture_depth_stacks(self):
 
