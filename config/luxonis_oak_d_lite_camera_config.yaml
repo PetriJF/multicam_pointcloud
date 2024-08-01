@@ -1,0 +1,35 @@
+camera_ids:
+  - 19443010D1BE671300
+  - 1844301081135A1200
+  - 18443010715BEE0F00
+ 
+#not sure which id is which camera, need to verify after mounting
+camera_19443010D1BE671300: #cam T Blue
+  offset_x: 305.128
+  offset_y: 131.1
+  offset_z: 319.274
+  rx: 180
+  ry: 0.0
+  rz: 0.0
+  lens_steps: [127, 101, 87, 79, 74, 70, 67, 65, 63] #lens steps linked to cam_id, offsets and rotation linked to camera placement
+ 
+camera_1844301081135A1200: # cam A Black
+  offset_x: 0.0
+  offset_y: 131.1
+  offset_z: 264.157
+  rx: -120
+  ry: 0.0
+  rz: 0.0
+  lens_steps: [118, 91, 78, 70, 65, 62, 58, 54, 52]
+
+
+camera_18443010715BEE0F00: # cam B Black and Blue
+  offset_x: 0.0
+  offset_y: 131.1
+  offset_z: 0
+  rx: -60.0
+  ry: 0.0
+  rz: 0.0
+  lens_steps: [116, 91, 79, 73, 67, 63, 61, 59, 57]
+ 
+p_dist: 69.462 # distance from servo to cam A and B axis. add to x offset if rz = 0, subtract from -x offset if rz = 180, or do trigonometry

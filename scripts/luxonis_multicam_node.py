@@ -3,19 +3,18 @@
 import cv2
 import depthai as dai
 import os
-import time
+import yaml
 import contextlib
-from pathlib import Path
 from rclpy.node import Node
 import rclpy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from farmbot_interfaces.msg import ImageMessage
+from ament_index_python.packages import get_package_share_directory
 
 # Manual focus set step
-LENS_STEPS = [60, 70, 80, 90, 100]
-FPS = 1
-CAPTURE_DELAY = 1
+LENS_STEPS = []
+FPS = 15
 
 class LuxonisMulticamNode(Node):
     '''
@@ -33,6 +32,10 @@ class LuxonisMulticamNode(Node):
         self.devices = []
         self.exit_stack = contextlib.ExitStack()  # Create an ExitStack as an attribute
 
+        self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
+        camera_config_file = 'luxonis_oak_d_lite_camera_config.yaml'
+        self.cam_config_data = self.load_from_yaml(self.config_directory, camera_config_file)
+        
         self.setup_camera()  # Initialize and configure the DepthAI camera
         self.image_message_ = ImageMessage()
         # Initialize publishers for RGB and depth images
@@ -46,11 +49,24 @@ class LuxonisMulticamNode(Node):
         self.capture_depth_stacks()
 
         self.get_logger().info('Luxonis Multicam Node initialized...')
-    
+        
+    def load_from_yaml(self, path, file_name):
+        full_path = os.path.join(path, file_name)
+        if not os.path.exists(full_path):
+            self.get_logger().warn(f"File path is invalid: {full_path}")
+            return None
+        
+        with open(full_path, 'r') as yaml_file:
+            try:
+                return yaml.safe_load(yaml_file)
+            except yaml.YAMLError as e:
+                self.get_logger().warn(f"Error reading YAML file: {e}")
+                return None
+            
     def createPipeline(self, idx):
         pipeline = dai.Pipeline()
         camRgb = pipeline.create(dai.node.ColorCamera)
-        camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
         camRgb.setFps(FPS)
 
         controlIn = pipeline.create(dai.node.XLinkIn)
@@ -121,21 +137,21 @@ class LuxonisMulticamNode(Node):
             device.close()
 
     def capture_depth_stacks(self):
-        lensPositions = [50, 50, 50]
 
         for controlQueue in self.controlQueues:
             try:
                 print("Sending initial manual focus to control queue")
                 ctrl = dai.CameraControl()
-                ctrl.setManualFocus(50)
+                ctrl.setManualFocus(150)
                 controlQueue.send(ctrl)
             except Exception as e:
                 print(f"Error setting initial manual focus: {type(e).__name__}: {e}")
 
         cv2.waitKey(500)
-
-        for lens_position in LENS_STEPS:
+        lens_steps_a = self.cam_config_data[f'camera_{self.devices[0].getMxId()}']['lens_steps']
+        for j in range(len(lens_steps_a)):
             for i, stillQueue in enumerate(self.stillQueues):
+                lens_position = self.cam_config_data[f'camera_{self.devices[i].getMxId()}']['lens_steps'][j]
                 try:
                     print(f"Sending capture still to control queue for Camera {i+1}")
                     ctrl = dai.CameraControl()
@@ -149,11 +165,10 @@ class LuxonisMulticamNode(Node):
                         if frame_data is not None and frame_data.size > 0:
                             rgb_image = cv2.imdecode(frame_data, cv2.IMREAD_COLOR)
                             if rgb_image is not None:
-                                self.publish_images(rgb_frame=rgb_image, id=i+1, focus=lensPositions[i])
-                                lensPositions[i] = lens_position
-                                print(f"Camera {i+1} - Setting manual focus, lens position: {lensPositions[i]}")
+                                self.publish_images(rgb_frame=rgb_image, id=i+1, focus=lens_position)
+                                print(f"Camera {i+1} - Setting manual focus, lens position: {lens_position}")
                                 ctrl = dai.CameraControl()
-                                ctrl.setManualFocus(lensPositions[i])
+                                ctrl.setManualFocus(lens_position)
                                 self.controlQueues[i].send(ctrl)
                             else:
                                 print(f"Camera {i+1} - Failed to decode frame data")
@@ -163,7 +178,6 @@ class LuxonisMulticamNode(Node):
                         # Clear the stillQueue to avoid filling up the buffer
                         stillQueue.tryGetAll()
 
-                    time.sleep(CAPTURE_DELAY)  # Delay to allow the device to process the frame
 
                 except RuntimeError as e:
                     print(f"Camera {i+1} encountered an error while sending control command: {e}")
