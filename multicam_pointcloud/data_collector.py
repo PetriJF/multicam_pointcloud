@@ -39,6 +39,17 @@ class CamDataCollector(Node):
         self.cam_config_data = self.load_from_yaml(self.config_directory, camera_config_file)
         system_config_file = 'mcpc_system_config.yaml'
         system_config_data = self.load_from_yaml(self.config_directory, system_config_file)
+        
+        self.declare_parameter(name = 'image_save_path', value = '')
+        self.image_save_dir_:str = self.get_parameter('image_save_path').get_parameter_value().string_value
+        if self.image_save_dir_ == '':
+            self.get_logger().error('Save directory was not selected in the launch file. Shutting down node')
+            self.destroy_node()
+            rclpy.shutdown()
+
+        self.declare_parameter(name = 'daily_measurement_count', value = 1)
+        self.daily_measurement_count_:int = self.get_parameter('daily_measurement_count').get_parameter_value().integer_value
+
         # Robot EE position
         self.cur_x_ = 0.0
         self.cur_y_ = 0.0
@@ -159,8 +170,25 @@ class CamDataCollector(Node):
         # Filename
         filename = f"{img_type}_cam{cam_id}_{timestamp}_X{x:.1f}_Y{y:.1f}_Z{z:.1f}_RX{rx:.1f}_RY{ry:.1f}_RZ{rz:.1f}{focus_dist}.{file_type}"
         
+        # Save folder
+        now = datetime.now()
+        date = now.strftime("%Y-%m-%d")
+        folder_name = ''
+        if self.daily_measurement_count_ == 0:
+            folder_name = 'images'
+        elif self.daily_measurement_count_ == 1:
+            folder_name = date
+        elif self.daily_measurement_count_ == 2:
+            hour = now.hour
+            if hour < 12:
+                folder_name = date + ' morning'
+            else:
+                folder_name = date + ' evening'
+        else:
+            self.get_logger().error(f"NOT IMPLEMENTED FOR {self.daily_measurement_count_} MEASUREMENTS")
+
         # Directory
-        directory = os.path.join(self.config_directory, 'images')
+        directory = os.path.join(self.image_save_dir_, folder_name)
         os.makedirs(directory, exist_ok=True)
         
         # Save image

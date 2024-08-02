@@ -88,7 +88,9 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'mcpc_camera': mcpc_camera},
-                {'camera_config_file': LaunchConfiguration('camera_config_file')}
+                {'camera_config_file': LaunchConfiguration('camera_config_file')},
+                {'image_save_path': '~/farmbot_images/'},
+                {'daily_measurement_count': 0}
             ]
         ),
 
