@@ -5,6 +5,8 @@ from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 from std_msgs.msg import String
 
+import time
+from datetime import datetime
 import math
 import os, yaml
 
@@ -33,6 +35,10 @@ class PointCloudController(Node):
 
         self.msg_ = String()
         self.final_sequence = ''
+
+        self.daily_iter_ = -1
+        self.timer = self.create_timer(60, self.start_reading)
+
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
         self.sequencer_pub_ = self.create_publisher(String, 'sequencer', 10)
 
@@ -47,6 +53,7 @@ class PointCloudController(Node):
                 * 'FORM_TYPE I J DIST SIDE D' = same as above but you can specify the plant arrangement type (GRID or RING)
                 * 'PRINT' = prints out the formed sequence
                 * 'RUN' = sends the sequence to the sequence manager
+                * 'RUN_C N' = runs the sequence the N times selected
                 * Commands that are the same as in the keyboard_controller:
                     - 'e'
                     - 'E'
@@ -55,12 +62,29 @@ class PointCloudController(Node):
                     - 'H_0'
         ''')
 
+    def start_reading(self):
+        now = datetime.now().time()
+        current_time = now.strftime('%H:%M')
+        
+        if self.daily_iter_ == -1:
+            pass
+        elif self.daily_iter_ == 2:
+            if current_time == '8:00':
+                self.msg_.data = self.final_sequence
+                self.sequencer_pub_.publish(self.msg_)
+                self.get_logger().info('Running the 3-Camera Imager sequence!')
+            elif current_time == '18:00':
+                self.msg_.data = self.final_sequence
+                self.sequencer_pub_.publish(self.msg_)
+                self.get_logger().info('Running the 3-Camera Imager sequence!')
+
     def controller(self):
         valid_cmds = [
             'FORM',
             'FORM_TYPE',
             'PRINT',
             'RUN',
+            'RUN_C',
             'e', 'E', 'C_0', 'CONF', 'H_0'
         ]
         
@@ -98,6 +122,8 @@ class PointCloudController(Node):
                 self.msg_.data = self.final_sequence
                 self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info('Running the 3-Camera Imager sequence!')
+            elif user_input_split[0] == 'RUN_C':
+                self.daily_iter_ = int(user_input_split[1])
             elif user_input_split[0] in ['e', 'E', 'C_0', 'CONF', 'H_0']:
                 self.msg_.data = user_input_split[0]
                 self.input_pub_.publish(self.msg_)
