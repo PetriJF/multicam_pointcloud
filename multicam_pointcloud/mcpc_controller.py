@@ -42,7 +42,9 @@ class PointCloudController(Node):
             can only be controlled from here (can NOT be controlled from the
             keyboard controller).\n
             List of commands:
-                * 'FORM_I_J_DIST_SIDE' = creates the sequence needed to control everything
+                * 'FORM I J DIST SIDE' = creates the sequence needed to control everything
+                * 'FORM I J DIST SIDE D' = same as above but you can specify the D Len
+                * 'FORM_TYPE I J DIST SIDE D' = same as above but you can specify the plant arrangement type (GRID or RING)
                 * 'PRINT' = prints out the formed sequence
                 * 'RUN' = sends the sequence to the sequence manager
                 * Commands that are the same as in the keyboard_controller:
