@@ -31,6 +31,8 @@ class LuxonisMulticam(Node):
         self.controlQueues = []
         self.stillQueues = []
         self.devices = []
+        self.leftQueues = []
+        self.rightQueues = []
         self.exit_stack = contextlib.ExitStack()  # Create an ExitStack as an attribute
 
         self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
@@ -73,18 +75,32 @@ class LuxonisMulticam(Node):
         camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
         camRgb.setFps(FPS)
 
+        monoRight = pipeline.create(dai.node.MonoCamera)
+        monoLeft = pipeline.create(dai.node.MonoCamera)
+        monoRight.setCamera("right")
+        monoLeft.setCamera("left")
+        monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
+        monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
+        
+
         controlIn = pipeline.create(dai.node.XLinkIn)
         stillOut = pipeline.create(dai.node.XLinkOut)
         videoEnc = pipeline.create(dai.node.VideoEncoder)
         videoEnc.setDefaultProfilePreset(1, dai.VideoEncoderProperties.Profile.MJPEG)
-        
+        xoutLeft = pipeline.create(dai.node.XLinkOut)
+        xoutRight = pipeline.create(dai.node.XLinkOut)
+
+
         controlIn.setStreamName(f'control-{idx}')
         stillOut.setStreamName(f'still-{idx}')
+        xoutLeft.setStreamName(f'left-{idx}')
+        xoutRight.setStreamName(f'right-{idx}')
 
         camRgb.still.link(videoEnc.input)
         videoEnc.bitstream.link(stillOut.input)
         controlIn.out.link(camRgb.inputControl)
-
+        monoRight.out.link(xoutRight.input)
+        monoLeft.out.link(xoutLeft.input)
         return pipeline
     
     def setup_camera(self):
@@ -104,15 +120,20 @@ class LuxonisMulticam(Node):
                 pipeline = self.createPipeline(idx)
                 device.startPipeline(pipeline)
                 controlQueue = device.getInputQueue(f'control-{idx}')
-                stillQueue = device.getOutputQueue(f'still-{idx}', maxSize=1, blocking=True)
+                stillQueue = device.getOutputQueue(f'still-{idx}', maxSize=1, blocking=False)
+                leftQueue = device.getOutputQueue(f"left-{idx}", maxSize=1, blocking=False)
+                rightQueue = device.getOutputQueue(f"right-{idx}", maxSize=1, blocking=False)
+                
                 self.controlQueues.append(controlQueue)
                 self.stillQueues.append(stillQueue)
+                self.leftQueues.append(leftQueue)
+                self.rightQueues.append(rightQueue)
                 print(f"Connected to device {idx+1} with MXID: {device.getMxId()}")
             except Exception as e:
                 print(f"Failed to connect to device {idx+1}, error: {e}")
                 exit(1)
             
-    def publish_images(self, rgb_frame=None, focus=None, id=None, depth_frame=None):
+    def publish_images(self, rgb_frame=None, focus=None, id=None, mono_frame=None):
         '''
         Publish RGB and depth frames if available
         '''
@@ -125,10 +146,10 @@ class LuxonisMulticam(Node):
                     self.image_publisher.publish(self.image_message_)
                 else:
                     self.get_logger().error(f"RGB frame for Camera {id} does not have 3 channels")
-            if depth_frame is not None:
+            if mono_frame is not None:
                 self.image_message_.image = self.bridge.cv2_to_imgmsg(depth_frame, encoding='mono8')
                 self.image_message_.id = id
-                self.image_message_.focus = None
+                self.image_message_.focus = focus
                 self.image_publisher.publish(self.image_message_)
         except Exception as e:
             self.get_logger().error(f"Failed to publish images: {e}")
@@ -200,6 +221,13 @@ class LuxonisMulticam(Node):
                 if key == ord('q'):
                     self.cleanup(self.devices)
                     exit(0)
+        #do stereo depth capture here
+        for i, leftQueue in enumerate(self.leftQueues):
+            rightQueue = self.rightQueues[i]
+            leftFrame = leftQueue.get()
+            rightFrame = rightQueue.get()
+            self.publish_images(mono_frame=leftFrame.getCvFrame(), id=i+1, focus=-10)
+            self.publish_images(mono_frame=rightFrame.getCvFrame(), id=i+1, focus=-11)
 
         print("Depth stack capture complete.")
 

@@ -11,7 +11,7 @@ camera_19443010D1BE671300: #cam T Blue
   rx: 180
   ry: 0.0
   rz: 0.0
-  lens_steps: [127, 101, 87, 79, 74, 70, 67, 65, 63] #lens steps linked to cam_id, offsets and rotation linked to camera placement
+  lens_steps: [152, 133, 111, 98, 89, 84, 80, 76, 73, 69, 66, 63, 60, 57] #lens steps linked to cam_id, offsets and rotation linked to camera placement
  
 camera_1844301081135A1200: # cam A Black
   offset_x: 0.0
@@ -20,7 +20,7 @@ camera_1844301081135A1200: # cam A Black
   rx: -120
   ry: 0.0
   rz: 0.0
-  lens_steps: [118, 91, 78, 70, 65, 62, 58, 54, 52]
+  lens_steps: [134, 117, 97, 85, 77, 71, 67, 64, 61, 58, 54, 51, 48, 45]
 
 
 camera_18443010715BEE0F00: # cam B Black and Blue
@@ -30,6 +30,6 @@ camera_18443010715BEE0F00: # cam B Black and Blue
   rx: -60.0
   ry: 0.0
   rz: 0.0
-  lens_steps: [116, 91, 79, 73, 67, 63, 61, 59, 57]
+  lens_steps: [137, 125, 103, 92, 84, 78, 73, 70, 67, 64, 61, 58, 55, 52]
  
 p_dist: 69.462 # distance from servo to cam A and B axis. add to x offset if rz = 0, subtract from -x offset if rz = 180, or do trigonometry
