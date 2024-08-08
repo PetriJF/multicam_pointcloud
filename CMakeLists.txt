@@ -13,41 +13,41 @@ find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(realsense2 REQUIRED)  # Ensure librealsense2 is found
+# find_package(realsense2 REQUIRED)  # Ensure librealsense2 is found
 find_package(farmbot_interfaces REQUIRED)    # Ensure std_srvs is found
 
 # Define project directories
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
 
 # Add executable
-add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
-add_executable(toggle_client_test src/toggle_client_test.cpp)
+# add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
+# add_executable(toggle_client_test src/toggle_client_test.cpp)
 
 # Include directories
 include_directories(
   ${PROJECT_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
-  ${realsense2_INCLUDE_DIRS}
+  # ${realsense2_INCLUDE_DIRS}
 )
 
 # Link the libraries
-target_link_libraries(realsense_multicam_node
-  ${OpenCV_LIBS}
-  ${realsense2_LIBRARY}
-)
+# target_link_libraries(realsense_multicam_node
+  # ${OpenCV_LIBS}
+  # ${realsense2_LIBRARY}
+# )
 
 # Dependencies for ament
-ament_target_dependencies(realsense_multicam_node
-  rclcpp
-  sensor_msgs
-  cv_bridge
-  farmbot_interfaces
-)
+# ament_target_dependencies(realsense_multicam_node
+#  rclcpp
+#  sensor_msgs
+#  cv_bridge
+#  farmbot_interfaces
+# )
 
-ament_target_dependencies(toggle_client_test
-  rclcpp
-  farmbot_interfaces
-)
+# ament_target_dependencies(toggle_client_test
+#  rclcpp
+#  farmbot_interfaces
+# )
 
 # Install launch files
 install(
@@ -63,8 +63,8 @@ install(
 
 # Install executable
 install(TARGETS
-  realsense_multicam_node
-  toggle_client_test
+  # realsense_multicam_node
+  # toggle_client_test
   DESTINATION lib/${PROJECT_NAME}
 )
 
