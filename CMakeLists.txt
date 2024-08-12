@@ -21,7 +21,7 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/includes)
 
 # Add executable
 # add_executable(realsense_multicam_node src/realsense_multicam_node.cpp)
-# add_executable(toggle_client_test src/toggle_client_test.cpp)
+add_executable(toggle_client_test src/toggle_client_test.cpp)
 
 # Include directories
 include_directories(
@@ -44,10 +44,10 @@ include_directories(
 #  farmbot_interfaces
 # )
 
-# ament_target_dependencies(toggle_client_test
-#  rclcpp
-#  farmbot_interfaces
-# )
+ament_target_dependencies(toggle_client_test
+  rclcpp
+  farmbot_interfaces
+)
 
 # Install launch files
 install(

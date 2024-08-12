@@ -165,7 +165,7 @@ class CamDataCollector(Node):
         file_type = 'png' if self.camera_used_ == 'Intel Realsense D405' else 'jpeg'
 
         # Focus distance
-        focus_dist = '' if focus == -1 else 'mono_left' if focus == -10 else 'mono_right' if focus = -11 else f'_{focus}'
+        focus_dist = '' if focus == -1 else 'stereo_disparity' if focus == -9 else 'mono_left' if focus == -10 else 'mono_right' if focus == -11 else f'_{focus}'
         
         # Filename
         filename = f"{img_type}_cam{cam_id}_{timestamp}_X{x:.1f}_Y{y:.1f}_Z{z:.1f}_RX{rx:.1f}_RY{ry:.1f}_RZ{rz:.1f}{focus_dist}.{file_type}"

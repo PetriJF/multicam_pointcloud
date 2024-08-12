@@ -113,9 +113,9 @@ class PointCloudController(Node):
                 turn = bool(int(user_input_split[5]))
                 dOff = float(user_input_split[6])
                 if incr > 0:
-                    self.final_sequence = self.form_sequence(f'{shape}_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff, plant = 'Carrot')
+                    self.final_sequence = self.form_sequence(f'{shape}_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff, plant = 'Oat')
                 else:
-                    self.final_sequence = self.form_sequence(f'{shape}_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff, plant = 'Carrot', sequence_points = True)
+                    self.final_sequence = self.form_sequence(f'{shape}_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff, plant = 'Oat', sequence_points = True)
             elif user_input_split[0] == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input_split[0] == 'RUN':
@@ -188,6 +188,7 @@ class PointCloudController(Node):
                     # Take the 3 pictures
                     sub_sequence += 'VC_3_Cam\n'
                     sub_sequence += 'M_CAM_TAKE\n'
+                    sub_sequence += f"TD_TICK_DELAY\nT{45}\n"
 
                     # Increment travel distance and step counter
                     travel += step
@@ -199,12 +200,14 @@ class PointCloudController(Node):
                     sub_sequence += f'{x_curr} {y_curr} {0}\n'
                     sub_sequence += 'VC_3_Cam\n'
                     sub_sequence += 'M_CAM_TAKE\n'
+                    sub_sequence += f"TD_TICK_DELAY\nT{45}\n"
             else:
                 sub_sequence += 'CC_3_Cam\n'
                 sub_sequence += f'{x_1} {y_1} {0}\n'
                 # Take the 3 pictures
                 sub_sequence += 'VC_3_Cam\n'
                 sub_sequence += 'M_CAM_TAKE\n'
+                sub_sequence += f"TD_TICK_DELAY\nT{45}\n"
 
                 if len(coords) == 2:
                     sub_sequence += 'CC_3_Cam\n'
@@ -212,6 +215,7 @@ class PointCloudController(Node):
                     # Take the 3 pictures
                     sub_sequence += 'VC_3_Cam\n'
                     sub_sequence += 'M_CAM_TAKE\n'
+                    sub_sequence += f"TD_TICK_DELAY\nT{45}\n"
             
             # Recursively call the function for the remaining points
             return sub_sequence + get_row_sequence(coords[1:], step, no_travel=no_travel)
