@@ -25,7 +25,7 @@ class PointCloudController(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
-        config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
+        config_directory = os.path.join(get_package_share_directory('mcpc'), 'config')
         system_config_file = 'mcpc_system_config.yaml'
         system_config_data = self.load_from_yaml(config_directory, system_config_file)
 
@@ -407,3 +407,20 @@ class PointCloudController(Node):
             
         with open(os.path.join(path, file_name), 'w') as yaml_file:
             yaml.dump(data, yaml_file, default_flow_style = False)
+            
+def main(args = None):
+    # MCPC Python Node installer
+    rclpy.init(args = args)
+    node = PointCloudController()
+     
+    try:
+        while rclpy.ok():
+            node.controller()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == "__main__":
+    main()

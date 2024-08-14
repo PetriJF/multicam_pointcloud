@@ -61,15 +61,15 @@ def generate_launch_description():
         # Conditional node launch based on mcpc_camera value
         Node(
             condition=LaunchConfigurationEquals('mcpc_camera', 'Intel Realsense D405'),
-            package='multicam_pointcloud',
+            package='mcpc',
             executable='realsense_multicam_node',
             name='realsense_multicam_node',
             output='screen'
         ),
         Node(
             condition=LaunchConfigurationEquals('mcpc_camera', 'Luxonis OAK-D Lite'),
-            package='multicam_pointcloud',
-            executable='luxonis_multicam_node.py',
+            package='mcpc',
+            executable='luxonis_multicam_node',
             name='luxonis_multicam',
             output='screen'
         ),
