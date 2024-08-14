@@ -1,0 +1,38 @@
+#TODO: connect 1 camera to rpi at a time and fill in camera ids and appropriate lens steps, check other luxonis config file for reference.
+
+#White camera: lens_steps: [143, 128, 105, 92, 83, 78, 74, 71, 68, 64, 62, 59, 57, 54, 51, 48]
+#Yellow camera:            [141, 128, 102, 89, 82, 76, 71, 69, 66, 63, 60, 57, 54, 50, 47, 44]
+#White and Yellow camera:  [133, 114, 94, 83, 75, 71, 66, 63, 60, 57, 54, 51, 48, 45, 42, 39]
+camera_ids:
+  - REPLACE
+  - REPLACE
+  - REPLACE
+ 
+#not sure which id is which camera, need to verify after mounting
+camera_REPLACE: # cam T (top) #REPLACE with top camera ID
+  offset_x: 305.128
+  offset_y: 131.1
+  offset_z: 319.274
+  rx: 180
+  ry: 0.0
+  rz: 0.0
+  lens_steps: REPLACE #REPLACE with appropriate colour lens steps
+
+camera_REPLACE: #cam B (middle) #REPLACE with middle camera ID
+  offset_x: 0.0
+  offset_y: 131.1
+  offset_z: 264.157
+  rx: -120
+  ry: 0.0
+  rz: 0.0
+  lens_steps: REPLACE
+  
+camera_REPLACE: # cam A (bottom) #REPLACE with bottom camera ID
+  offset_x: 0.0
+  offset_y: 131.1
+  offset_z: 0
+  rx: -60.0
+  ry: 0.0
+  rz: 0.0
+lens_steps: REPLACE
+p_dist: 69.462 # distance from servo to cam A and B axis. add to x offset if rz = 0, subtract from -x offset if rz = 180, or do trigonometry
