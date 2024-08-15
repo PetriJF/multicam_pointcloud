@@ -14,6 +14,21 @@ def generate_launch_description():
             default_value='Luxonis OAK-D Lite',
             description='Camera type for data collection'
         ),
+        DeclareLaunchArgument(
+            'camera_config_file',
+            default_value='luxonis_oak_d_lite_camera_config.yaml',
+            description='Configuration file for the camera'
+        ),
+        DeclareLaunchArgument(
+            'image_save_path',
+            default_value='',
+            description='Save location for the images'
+        ),
+        DeclareLaunchArgument(
+            'daily_measurement_count',
+            default_value='0',
+            description='0 non-periodic, 1 - daily reading, 2 -morning and evening readings'
+        ),
 
         Node(
             package='farmbot_controllers',
@@ -61,17 +76,23 @@ def generate_launch_description():
         # Conditional node launch based on mcpc_camera value
         Node(
             condition=LaunchConfigurationEquals('mcpc_camera', 'Intel Realsense D405'),
-            package='mcpc',
+            package='multicam_pointcloud',
             executable='realsense_multicam_node',
             name='realsense_multicam_node',
             output='screen'
         ),
         Node(
             condition=LaunchConfigurationEquals('mcpc_camera', 'Luxonis OAK-D Lite'),
-            package='mcpc',
+            package='multicam_pointcloud',
             executable='luxonis_multicam_node',
             name='luxonis_multicam',
-            output='screen'
+            output='screen',
+            parameters=[
+                {'mcpc_camera': LaunchConfiguration('mcpc_camera')},
+                {'camera_config_file': LaunchConfiguration('camera_config_file')},
+                {'image_save_path': LaunchConfiguration('image_save_path')},
+                {'daily_measurement_count': LaunchConfiguration('daily_measurement_count')}
+            ]
         ),
 
         # Delay for 15 seconds

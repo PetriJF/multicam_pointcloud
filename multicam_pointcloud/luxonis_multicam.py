@@ -10,6 +10,7 @@ from sensor_msgs.msg import Image
 from farmbot_interfaces.msg import ImageMessage
 from farmbot_interfaces.srv import StringRepReq
 from ament_index_python.packages import get_package_share_directory
+from multicam_pointcloud.data_manager import CamDataManager
 import numpy as np
 
 # Manual focus set step
@@ -26,6 +27,10 @@ class LuxonisMulticam(Node):
         '''
         super().__init__('LuxonisMulticam')
 
+        # TESTING
+        self.img_mngr_ = CamDataManager(self)
+        
+
         self.bridge = CvBridge()  # Bridge to convert between ROS and OpenCV images
         self.controlQueues = []
         self.stillQueues = []
@@ -35,7 +40,7 @@ class LuxonisMulticam(Node):
         self.stereoQueues = []
         self.exit_stack = contextlib.ExitStack()  # Create an ExitStack as an attribute
 
-        self.config_directory = os.path.join(get_package_share_directory('mcpc'), 'config')
+        self.config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
         camera_config_file = 'luxonis_oak_d_lite_camera_config.yaml'
         self.cam_config_data = self.load_from_yaml(self.config_directory, camera_config_file)
         
@@ -46,7 +51,7 @@ class LuxonisMulticam(Node):
         self.image_message_ = ImageMessage()
         # Dictionary to hold publishers keyed by camera id
 
-        self.create_publishers()  # Initialize publishers for RGB, depth, and mono images
+        # self.create_publishers()  # Initialize publishers for RGB, depth, and mono images
 
         self.rgb_image_ = None
         self.depth_image_ = None
@@ -57,19 +62,19 @@ class LuxonisMulticam(Node):
         # for i in range(200):
         #     self.test_publish()
         # FOR DEBUGGING: Capture depth stacks once for testing
-        self.capture_depth_stacks()
+        # self.capture_depth_stacks()
 
         self.get_logger().info('Luxonis Multicam Node initialized...')
         
-    def test_publish(self):
-        for camera_id, publisher in self.rgb_publishers.items():
-            dummy_image = np.zeros((480, 640, 3), dtype=np.uint8)  # Create a dummy image
-            image_message = ImageMessage()
-            image_message.image = self.bridge.cv2_to_imgmsg(dummy_image, encoding='bgr8')
-            image_message.id = 1
-            image_message.focus = 150
-            publisher.publish(image_message)
-            self.get_logger().info(f"Published test image to cam_id: {camera_id}")
+    # def test_publish(self):
+    #     for camera_id, publisher in self.rgb_publishers.items():
+    #         dummy_image = np.zeros((480, 640, 3), dtype=np.uint8)  # Create a dummy image
+    #         image_message = ImageMessage()
+    #         image_message.image = self.bridge.cv2_to_imgmsg(dummy_image, encoding='bgr8')
+    #         image_message.id = 1
+    #         image_message.focus = 150
+    #         publisher.publish(image_message)
+    #         self.get_logger().info(f"Published test image to cam_id: {camera_id}")
 
     def load_from_yaml(self, path, file_name):
         full_path = os.path.join(path, file_name)
@@ -84,15 +89,15 @@ class LuxonisMulticam(Node):
                 self.get_logger().warn(f"Error reading YAML file: {e}")
                 return None
 
-    def create_publishers(self):
-        '''
-        Creates individual publishers for each camera's RGB, mono, and depth images
-        '''
-        for device in self.devices:
-            camera_id = device.getMxId()
-            self.rgb_publishers[camera_id] = self.create_publisher(ImageMessage, f'rgb_{camera_id}', 10)
-            self.mono_publishers[camera_id] = self.create_publisher(ImageMessage, f'mono_{camera_id}', 10)
-            self.depth_publishers[camera_id] = self.create_publisher(ImageMessage, f'depth_{camera_id}', 10)
+    # def create_publishers(self):
+    #     '''
+    #     Creates individual publishers for each camera's RGB, mono, and depth images
+    #     '''
+    #     for device in self.devices:
+    #         camera_id = device.getMxId()
+    #         self.rgb_publishers[camera_id] = self.create_publisher(ImageMessage, f'rgb_{camera_id}', 10)
+    #         self.mono_publishers[camera_id] = self.create_publisher(ImageMessage, f'mono_{camera_id}', 10)
+    #         self.depth_publishers[camera_id] = self.create_publisher(ImageMessage, f'depth_{camera_id}', 10)
 
     def configure_stereo_depth(self, stereo):
         '''
@@ -250,7 +255,8 @@ class LuxonisMulticam(Node):
         lens_steps_a = self.cam_config_data[f'camera_{self.devices[0].getMxId()}']['lens_steps']
         for j in range(len(lens_steps_a)):
             for i, stillQueue in enumerate(self.stillQueues):
-                lens_position = self.cam_config_data[f'camera_{self.devices[i].getMxId()}']['lens_steps'][j]
+                cam_id = self.devices[i].getMxId()
+                lens_position = self.cam_config_data[f'camera_{cam_id}']['lens_steps'][j]
                 try:
                     #self.get_logger().info(f"Sending capture still to control queue for Camera {i+1}")
                     ctrl = dai.CameraControl()
@@ -265,11 +271,11 @@ class LuxonisMulticam(Node):
                             rgb_image = cv2.imdecode(frame_data, cv2.IMREAD_COLOR)
                             if rgb_image is not None:
                                 # Downscale the image by a factor of 10
-                                height, width = rgb_image.shape[:2]
-                                new_dimensions = (width // 2, height // 2)
-                                rgb_image = cv2.resize(rgb_image, new_dimensions, interpolation=cv2.INTER_AREA)
-                            if rgb_image is not None:
-                                self.publish_images(rgb_frame=rgb_image, id=i+1, focus=lens_position)
+                                #height, width = rgb_image.shape[:2]
+                                #new_dimensions = (width // 2, height // 2)
+                                #rgb_image = cv2.resize(rgb_image, new_dimensions, interpolation=cv2.INTER_AREA)
+                                self.img_mngr_.save_img('rgb', cam_id, rgb_image, lens_position)
+                                #self.publish_images(rgb_frame=rgb_image, id=i+1, focus=lens_position)
                                 self.get_logger().info(f"Camera {i+1} - Setting manual focus, lens position: {lens_position}")
                                 ctrl = dai.CameraControl()
                                 ctrl.setManualFocus(lens_position)
@@ -279,7 +285,7 @@ class LuxonisMulticam(Node):
                         else:
                             self.get_logger().info(f"Camera {i+1} - Received empty frame data")
 
-                        # Clear the stillQueue to avoid filling up the buffer
+                        # Clear the stillQueue to avoid filliFng up the buffer
                         stillQueue.tryGetAll()
 
                 except RuntimeError as e:
@@ -294,14 +300,19 @@ class LuxonisMulticam(Node):
 
         #do stereo depth capture here
         for i, leftQueue in enumerate(self.leftQueues):
+            cam_id = self.devices[i].getMxId()
             rightQueue = self.rightQueues[i]
             leftFrame = leftQueue.get()
             rightFrame = rightQueue.get()
-            self.publish_images(mono_frame=leftFrame.getCvFrame(), id=i+1, focus=-10)
-            self.publish_images(mono_frame=rightFrame.getCvFrame(), id=i+1, focus=-11)
+            self.img_mngr_.save_img('mono', cam_id, leftFrame.getCvFrame(), focus=-10)
+            self.img_mngr_.save_img('mono', cam_id, rightFrame.getCvFrame(), focus=-11)
+            #self.publish_images(mono_frame=leftFrame.getCvFrame(), id=i+1, focus=-10)
+            #self.publish_images(mono_frame=rightFrame.getCvFrame(), id=i+1, focus=-11)
         for i, stereoQueue in enumerate(self.stereoQueues):
+            cam_id = self.devices[i].getMxId()
             stereoFrame = stereoQueue.get()
-            self.publish_images(depth_frame=stereoFrame.getCvFrame(), id=i+1, focus=-9)
+            self.img_mngr_.save_img('depth', cam_id, stereoFrame.getCvFrame(), focus=-9)
+            #self.publish_images(depth_frame=stereoFrame.getCvFrame(), id=i+1, focus=-9)
         self.get_logger().info("Depth stack capture complete.")
 
     def destroy_node(self):
