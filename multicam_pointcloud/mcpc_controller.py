@@ -5,6 +5,8 @@ from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 from std_msgs.msg import String
 
+import time
+from datetime import datetime
 import math
 import os, yaml
 
@@ -23,7 +25,7 @@ class PointCloudController(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
-        config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
+        config_directory = os.path.join(get_package_share_directory('mcpc'), 'config')
         system_config_file = 'mcpc_system_config.yaml'
         system_config_data = self.load_from_yaml(config_directory, system_config_file)
 
@@ -33,6 +35,10 @@ class PointCloudController(Node):
 
         self.msg_ = String()
         self.final_sequence = ''
+
+        self.daily_iter_ = -1
+        self.timer = self.create_timer(60, self.start_reading)
+
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
         self.sequencer_pub_ = self.create_publisher(String, 'sequencer', 10)
 
@@ -42,9 +48,12 @@ class PointCloudController(Node):
             can only be controlled from here (can NOT be controlled from the
             keyboard controller).\n
             List of commands:
-                * 'FORM_I_J_DIST_SIDE' = creates the sequence needed to control everything
+                * 'FORM I J DIST SIDE' = creates the sequence needed to control everything
+                * 'FORM I J DIST SIDE D' = same as above but you can specify the D Len
+                * 'FORM_TYPE I J DIST SIDE D' = same as above but you can specify the plant arrangement type (GRID or RING)
                 * 'PRINT' = prints out the formed sequence
                 * 'RUN' = sends the sequence to the sequence manager
+                * 'RUN_C N' = runs the sequence the N times selected
                 * Commands that are the same as in the keyboard_controller:
                     - 'e'
                     - 'E'
@@ -53,11 +62,29 @@ class PointCloudController(Node):
                     - 'H_0'
         ''')
 
+    def start_reading(self):
+        now = datetime.now().time()
+        current_time = now.strftime('%H:%M')
+        
+        if self.daily_iter_ == -1:
+            pass
+        elif self.daily_iter_ == 2:
+            if current_time == '8:00':
+                self.msg_.data = self.final_sequence
+                self.sequencer_pub_.publish(self.msg_)
+                self.get_logger().info('Running the 3-Camera Imager sequence!')
+            elif current_time == '18:00':
+                self.msg_.data = self.final_sequence
+                self.sequencer_pub_.publish(self.msg_)
+                self.get_logger().info('Running the 3-Camera Imager sequence!')
+
     def controller(self):
         valid_cmds = [
             'FORM',
+            'FORM_TYPE',
             'PRINT',
             'RUN',
+            'RUN_C',
             'e', 'E', 'C_0', 'CONF', 'H_0'
         ]
         
@@ -78,12 +105,25 @@ class PointCloudController(Node):
                 turn = bool(int(user_input_split[4]))
                 dOff = float(user_input_split[5])
                 self.final_sequence = self.form_sequence(f'RING_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff)
+            elif user_input_split[0] == 'FORM_TYPE' and len(user_input_split) == 7:
+                shape = user_input_split[1]
+                rows = user_input_split[2]
+                cols = user_input_split[3]
+                incr = int(user_input_split[4])
+                turn = bool(int(user_input_split[5]))
+                dOff = float(user_input_split[6])
+                if incr > 0:
+                    self.final_sequence = self.form_sequence(f'{shape}_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff, plant = 'Oat')
+                else:
+                    self.final_sequence = self.form_sequence(f'{shape}_{rows}_{cols}', steps_mm = incr, turn_side = turn, d_offset = dOff, plant = 'Oat', sequence_points = True)
             elif user_input_split[0] == 'PRINT':
                 self.get_logger().info(self.final_sequence)
             elif user_input_split[0] == 'RUN':
                 self.msg_.data = self.final_sequence
                 self.sequencer_pub_.publish(self.msg_)
-                self.get_logger().info("Running the 3-Camera Imager sequence!")
+                self.get_logger().info('Running the 3-Camera Imager sequence!')
+            elif user_input_split[0] == 'RUN_C':
+                self.daily_iter_ = int(user_input_split[1])
             elif user_input_split[0] in ['e', 'E', 'C_0', 'CONF', 'H_0']:
                 self.msg_.data = user_input_split[0]
                 self.input_pub_.publish(self.msg_)
@@ -93,7 +133,7 @@ class PointCloudController(Node):
             self.get_logger().warning('Command not recognized')
 
 
-    def form_sequence(self, pattern: str, steps_mm: int, turn_side: bool, d_offset: int, servo_pin = 4) -> str:
+    def form_sequence(self, pattern: str, turn_side: bool, d_offset: int, steps_mm: int = 0, servo_pin:int = 4, plant:str = 'Tomato', sequence_points:bool = False) -> str:
         '''
         Forms the sequence for capturing images of each plant row at given intervals.
         Args:
@@ -102,8 +142,9 @@ class PointCloudController(Node):
             d_offset  {int} : offset between toolhead center and horizontal camera.
             turn_side {bool}: side on which the unit should attempt to move between rows.
             servo_pin {int} : the pin to which the servo is connected.
+            plant     {str} : the plant type we are looking for in the active map.
         '''
-        plant_grid, max_x, max_y = self.form_grid(pattern)
+        plant_grid, max_x, max_y = self.form_grid(pattern, plant_type=plant)
 
         def modify_coords(coords, value, x_min, x_max, y_min, y_max):
             '''
@@ -116,7 +157,7 @@ class PointCloudController(Node):
                 ] for x, y in coords
             ]
 
-        def get_row_sequence(coords: list, step: int) -> str:
+        def get_row_sequence(coords: list, step: int, no_travel:bool = False) -> str:
             '''
             Forms the sequence for the coordinates by moving from point to point
             in the given step increments.
@@ -135,31 +176,49 @@ class PointCloudController(Node):
             travel = 0
             n = 0
             
-            while travel <= dist:
-                # Calculate current step's x and y positions
-                x_curr = int(x_1 + (n * step / dist) * (x_2 - x_1))
-                y_curr = int(y_1 + (n * step / dist) * (y_2 - y_1))
-                            
-                # Move to the given coordinate
+            if not no_travel:
+                while travel <= dist:
+                    # Calculate current step's x and y positions
+                    x_curr = int(x_1 + (n * step / dist) * (x_2 - x_1))
+                    y_curr = int(y_1 + (n * step / dist) * (y_2 - y_1))
+                                
+                    # Move to the given coordinate
+                    sub_sequence += 'CC_3_Cam\n'
+                    sub_sequence += f'{x_curr} {y_curr} {0}\n'
+                    # Take the 3 pictures
+                    sub_sequence += 'VC_3_Cam\n'
+                    sub_sequence += 'M_CAM_TAKE\n'
+                    sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
+
+                    # Increment travel distance and step counter
+                    travel += step
+                    n += 1
+                
+                # Print the last point if it hasn't been printed yet
+                if travel != dist:
+                    sub_sequence += 'CC_3_Cam\n'
+                    sub_sequence += f'{x_curr} {y_curr} {0}\n'
+                    sub_sequence += 'VC_3_Cam\n'
+                    sub_sequence += 'M_CAM_TAKE\n'
+                    sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
+            else:
                 sub_sequence += 'CC_3_Cam\n'
-                sub_sequence += f'{x_curr} {y_curr} {0}\n'
+                sub_sequence += f'{x_1} {y_1} {0}\n'
                 # Take the 3 pictures
                 sub_sequence += 'VC_3_Cam\n'
                 sub_sequence += 'M_CAM_TAKE\n'
+                sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
 
-                # Increment travel distance and step counter
-                travel += step
-                n += 1
-            
-            # Print the last point if it hasn't been printed yet
-            if travel != dist:
-                sub_sequence += 'CC_3_Cam\n'
-                sub_sequence += f'{x_curr} {y_curr} {0}\n'
-                sub_sequence += 'VC_3_Cam\n'
-                sub_sequence += 'M_CAM_TAKE\n'
+                if len(coords) == 2:
+                    sub_sequence += 'CC_3_Cam\n'
+                    sub_sequence += f'{x_2} {y_2} {0}\n'
+                    # Take the 3 pictures
+                    sub_sequence += 'VC_3_Cam\n'
+                    sub_sequence += 'M_CAM_TAKE\n'
+                    sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
             
             # Recursively call the function for the remaining points
-            return sub_sequence + get_row_sequence(coords[1:], step)
+            return sub_sequence + get_row_sequence(coords[1:], step, no_travel=no_travel)
 
         first_row_key = -1
         coords_to_hit = []
@@ -178,7 +237,7 @@ class PointCloudController(Node):
                 # Rotate the servo to the left side of the fence
                 sequence += f'SC_3_Cam\n{servo_pin} {self.servo_180_pos}\n'
                 # Record the plants on one side
-                sequence += get_row_sequence(coords, steps_mm)
+                sequence += (get_row_sequence(coords, steps_mm) if not sequence_points else get_row_sequence(coords, steps_mm, no_travel = True))
                 
                 # Move the the other side of the row
                 if not turn_side:
@@ -191,7 +250,7 @@ class PointCloudController(Node):
                     # Move to the other side
                     sequence += f'CC_3_Cam\n{int(coords[0][0])} {0} 0\n'
                     # Record the plants on the other side
-                    sequence += get_row_sequence(coords, steps_mm)
+                    sequence += (get_row_sequence(coords, steps_mm) if not sequence_points else get_row_sequence(coords, steps_mm, no_travel = True))
                 else: 
                     # Move as close to the end of the y-axis as possible
                     sequence += f'CC_3_Cam\n{int(coords[0][0])} {int(max_y - self.ROW_Y_SWITCH_OFFSET)} 0\n'
@@ -204,15 +263,14 @@ class PointCloudController(Node):
                     # Rotate the servo to the right side of the fence
                     sequence += f'SC_3_Cam\n{servo_pin} {self.servo_0_pos}\n'
                     # Record the plants on the other side
-                    sequence += get_row_sequence(coords, steps_mm)
+                    sequence += (get_row_sequence(coords, steps_mm) if not sequence_points else get_row_sequence(coords, steps_mm, no_travel = True))
                 
-
                 coords_to_hit.clear()
                 first_row_key = -1
         
         return sequence
 
-    def form_grid(self, pattern: str) -> dict:
+    def form_grid(self, pattern: str, plant_type:str = 'Tomato') -> dict:
         '''
         Based on the information from the active map instance,
         a grid plan for going from plant to plant according to
@@ -230,7 +288,7 @@ class PointCloudController(Node):
 
         # Extract and sort tomato plants
         for plant_id, plant_info in map_instance['plant_details']['plants'].items():
-            if plant_info['identifiers']['plant_name'] == 'Tomato':
+            if plant_info['identifiers']['plant_name'] == plant_type:
                 plant = {
                     'name': plant_info['identifiers']['plant_name'],
                     'index': plant_info['identifiers']['index'],
@@ -349,3 +407,20 @@ class PointCloudController(Node):
             
         with open(os.path.join(path, file_name), 'w') as yaml_file:
             yaml.dump(data, yaml_file, default_flow_style = False)
+            
+def main(args = None):
+    # MCPC Python Node installer
+    rclpy.init(args = args)
+    node = PointCloudController()
+     
+    try:
+        while rclpy.ok():
+            node.controller()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == "__main__":
+    main()

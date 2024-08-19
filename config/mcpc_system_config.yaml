@@ -1,5 +1,5 @@
 # If your servo is not a 180deg one, you can fine tune the position here
 servo_left_rot: 8.0
-servo_right_rot: 138.0
+servo_right_rot: 142.0
 # The distance subtracted from y-max when switching rows
 row_y_switch_offset: 195.0

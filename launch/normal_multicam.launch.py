@@ -1,10 +1,35 @@
 import launch
 from launch import LaunchDescription, LaunchService
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import LaunchConfigurationEquals
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.actions import TimerAction
 
 def generate_launch_description():
     return LaunchDescription([
+        # Declare the launch arguments
+        DeclareLaunchArgument(
+            'mcpc_camera',
+            default_value='Luxonis OAK-D Lite',
+            description='Camera type for data collection'
+        ),
+        DeclareLaunchArgument(
+            'camera_config_file',
+            default_value='luxonis_oak_d_lite_camera_config.yaml',
+            description='Configuration file for the camera'
+        ),
+        DeclareLaunchArgument(
+            'image_save_path',
+            default_value='',
+            description='Save location for the images'
+        ),
+        DeclareLaunchArgument(
+            'daily_measurement_count',
+            default_value='0',
+            description='0 non-periodic, 1 - daily reading, 2 -morning and evening readings'
+        ),
+
         Node(
             package='farmbot_controllers',
             executable='param_conf_server',
@@ -47,19 +72,29 @@ def generate_launch_description():
             name='map_controller',
             output='screen'
         ),
+
+        # Conditional node launch based on mcpc_camera value
         Node(
+            condition=LaunchConfigurationEquals('mcpc_camera', 'Intel Realsense D405'),
             package='multicam_pointcloud',
             executable='realsense_multicam_node',
             name='realsense_multicam_node',
             output='screen'
         ),
         Node(
+            condition=LaunchConfigurationEquals('mcpc_camera', 'Luxonis OAK-D Lite'),
             package='multicam_pointcloud',
-            executable='data_collection_node.py',
-            name='data_collector',
-            output='screen'
+            executable='luxonis_multicam_node',
+            name='luxonis_multicam',
+            output='screen',
+            parameters=[
+                {'mcpc_camera': LaunchConfiguration('mcpc_camera')},
+                {'camera_config_file': LaunchConfiguration('camera_config_file')},
+                {'image_save_path': LaunchConfiguration('image_save_path')},
+                {'daily_measurement_count': LaunchConfiguration('daily_measurement_count')}
+            ]
         ),
-        
+
         # Delay for 15 seconds
         TimerAction(
             period=60.0,
