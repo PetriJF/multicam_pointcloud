@@ -65,7 +65,7 @@ class PointCloudController(Node):
     def start_reading(self):
         now = datetime.now().time()
         current_time = now.strftime('%H:%M')
-        
+
         if self.daily_iter_ == -1:
             pass
         elif self.daily_iter_ == 2:
@@ -87,7 +87,7 @@ class PointCloudController(Node):
             'RUN_C',
             'e', 'E', 'C_0', 'CONF', 'H_0'
         ]
-        
+
         user_input = input('\nEnter command: ')
         user_input_split = user_input.split(' ')
 
@@ -188,7 +188,7 @@ class PointCloudController(Node):
                     # Take the 3 pictures
                     sub_sequence += 'VC_3_Cam\n'
                     sub_sequence += 'M_CAM_TAKE\n'
-                    sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
+                    # sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
 
                     # Increment travel distance and step counter
                     travel += step
@@ -200,14 +200,14 @@ class PointCloudController(Node):
                     sub_sequence += f'{x_curr} {y_curr} {0}\n'
                     sub_sequence += 'VC_3_Cam\n'
                     sub_sequence += 'M_CAM_TAKE\n'
-                    sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
+                    # sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
             else:
                 sub_sequence += 'CC_3_Cam\n'
                 sub_sequence += f'{x_1} {y_1} {0}\n'
                 # Take the 3 pictures
                 sub_sequence += 'VC_3_Cam\n'
                 sub_sequence += 'M_CAM_TAKE\n'
-                sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
+                # sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
 
                 if len(coords) == 2:
                     sub_sequence += 'CC_3_Cam\n'
@@ -215,7 +215,7 @@ class PointCloudController(Node):
                     # Take the 3 pictures
                     sub_sequence += 'VC_3_Cam\n'
                     sub_sequence += 'M_CAM_TAKE\n'
-                    sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
+                    # sub_sequence += f"TD_TICK_DELAY\nT{170}\n"
             
             # Recursively call the function for the remaining points
             return sub_sequence + get_row_sequence(coords[1:], step, no_travel=no_travel)
