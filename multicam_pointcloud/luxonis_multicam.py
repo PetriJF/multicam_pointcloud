@@ -166,7 +166,7 @@ class LuxonisMulticam(Node):
                 return response
             
             result = self.capture_depth_stacks()
-            response.data == 'FINISHED' if result else 'FAILED'
+            response.data = 'SUCCESS' if result else 'FAILED'
             return response
 
     def capture_depth_stacks(self):
