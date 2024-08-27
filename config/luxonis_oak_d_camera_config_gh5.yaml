@@ -1,38 +1,35 @@
-#TODO: connect 1 camera to rpi at a time and fill in camera ids and appropriate lens steps, check other luxonis config file for reference.
-
-#White camera: lens_steps: [143, 128, 105, 92, 83, 78, 74, 71, 68, 64, 62, 59, 57, 54, 51, 48]
-#Yellow camera:            [141, 128, 102, 89, 82, 76, 71, 69, 66, 63, 60, 57, 54, 50, 47, 44]
-#White and Yellow camera:  [133, 114, 94, 83, 75, 71, 66, 63, 60, 57, 54, 51, 48, 45, 42, 39]
 camera_ids:
-  - REPLACE
-  - REPLACE
-  - REPLACE
- 
-#not sure which id is which camera, need to verify after mounting
-camera_REPLACE: # cam T (top) #REPLACE with top camera ID
+  - 184430109180E80F00
+  - 19443010D1D74E1300
+  - 1844301071C04B1200
+
+camera_184430109180E80F00: # cam TOP YELLOW
   offset_x: 305.128
-  offset_y: 131.1
-  offset_z: 319.274
+  offset_y: 0.0     # 131.1
+  offset_z: 690.117 # 485.117
   rx: 180
   ry: 0.0
   rz: 0.0
-  lens_steps: REPLACE #REPLACE with appropriate colour lens steps
+  lens_steps: [141, 128, 102, 89, 82, 76, 71, 69, 66, 63, 60, 57, 54, 50, 47, 44] #lens steps linked to cam_id, offsets and rotation linked to camera placement
 
-camera_REPLACE: #cam B (middle) #REPLACE with middle camera ID
-  offset_x: 0.0
-  offset_y: 131.1
-  offset_z: 264.157
+# offset between D and A on Z axis is 55.117
+
+camera_19443010D1D74E1300: # cam A Blue
+  offset_x: 30.05 # 21.25
+  offset_y: 0.0 # 131.1
+  offset_z: 635 # 430
   rx: -120
-  ry: 0.0
+  ry: 90.0
   rz: 0.0
-  lens_steps: REPLACE
-  
-camera_REPLACE: # cam A (bottom) #REPLACE with bottom camera ID
+  lens_steps: [152, 133, 111, 98, 89, 84, 80, 76, 73, 69, 66, 63, 60, 57, 56, 53]
+
+camera_1844301081135A1200: # cam B Black
   offset_x: 0.0
-  offset_y: 131.1
-  offset_z: 0
-  rx: -60.0
-  ry: 0.0
+  offset_y: 0.0 #131.1
+  offset_z: 0.0
+  rx: -90.0
+  ry: 90.0
   rz: 0.0
-lens_steps: REPLACE
+  lens_steps: [134, 117, 97, 85, 77, 71, 67, 64, 61, 58, 54, 51, 48, 45, 42, 39]
+
 p_dist: 69.462 # distance from servo to cam A and B axis. add to x offset if rz = 0, subtract from -x offset if rz = 180, or do trigonometry
