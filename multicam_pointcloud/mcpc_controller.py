@@ -25,7 +25,7 @@ class PointCloudController(Node):
         )
         self.active_map_file_ = 'active_map.yaml'
 
-        config_directory = os.path.join(get_package_share_directory('mcpc'), 'config')
+        config_directory = os.path.join(get_package_share_directory('multicam_pointcloud'), 'config')
         system_config_file = 'mcpc_system_config.yaml'
         system_config_data = self.load_from_yaml(config_directory, system_config_file)
 
