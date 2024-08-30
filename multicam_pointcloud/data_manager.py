@@ -203,9 +203,9 @@ class CamDataManager():
         elif self.daily_measurement_count_ == 2:
             hour = now.hour
             if hour < 12:
-                folder_name = date + ' morning'
+                folder_name = date + '-Morning'
             else:
-                folder_name = date + ' evening'
+                folder_name = date + '-Evening'
         else:
             self.node_.get_logger().error(f'NOT IMPLEMENTED FOR {self.daily_measurement_count_} MEASUREMENTS')
  

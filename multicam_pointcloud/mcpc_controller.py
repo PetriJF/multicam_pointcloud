@@ -73,10 +73,18 @@ class PointCloudController(Node):
                 self.msg_.data = self.final_sequence
                 self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info('Running the 3-Camera Imager sequence!')
-            elif current_time == '18:00':
+            elif current_time == '7:50':
+                self.msg_.data = 'H_0'
+                self.input_pub_.publish(self.msg_)
+                self.get_logger().info('Homing the robot!')
+            elif current_time == '14:10':
                 self.msg_.data = self.final_sequence
                 self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info('Running the 3-Camera Imager sequence!')
+            elif current_time == '14:00':
+                self.msg_.data = 'H_0'
+                self.input_pub_.publish(self.msg_)
+                self.get_logger().info('Homing the robot!')
 
     def controller(self):
         valid_cmds = [

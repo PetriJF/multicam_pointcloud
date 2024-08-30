@@ -26,7 +26,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'daily_measurement_count',
-            default_value='0',
+            default_value='2',
             description='0 non-periodic, 1 - daily reading, 2 -morning and evening readings'
         ),
 
