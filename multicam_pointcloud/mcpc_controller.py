@@ -6,6 +6,7 @@ from ament_index_python.packages import get_package_share_directory
 from std_msgs.msg import String
 
 import time
+import threading
 from datetime import datetime
 import math
 import os, yaml
@@ -37,7 +38,7 @@ class PointCloudController(Node):
         self.final_sequence = ''
 
         self.daily_iter_ = -1
-        self.timer = self.create_timer(60, self.start_reading)
+        self.timer_ = self.create_timer(60.0, self.start_reading)
 
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
         self.sequencer_pub_ = self.create_publisher(String, 'sequencer', 10)
@@ -65,26 +66,18 @@ class PointCloudController(Node):
     def start_reading(self):
         now = datetime.now().time()
         current_time = now.strftime('%H:%M')
-
         if self.daily_iter_ == -1:
             pass
         elif self.daily_iter_ == 2:
-            if current_time == '8:00':
-                self.msg_.data = self.final_sequence
-                self.sequencer_pub_.publish(self.msg_)
-                self.get_logger().info('Running the 3-Camera Imager sequence!')
-            elif current_time == '7:50':
+            if current_time == '7:50' or current_time == '8:00':
                 self.msg_.data = 'H_0'
                 self.input_pub_.publish(self.msg_)
                 self.get_logger().info('Homing the robot!')
-            elif current_time == '14:10':
+            elif current_time == '8:00' or current_time == '14:10':
                 self.msg_.data = self.final_sequence
                 self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info('Running the 3-Camera Imager sequence!')
-            elif current_time == '14:00':
-                self.msg_.data = 'H_0'
-                self.input_pub_.publish(self.msg_)
-                self.get_logger().info('Homing the robot!')
+            
 
     def controller(self):
         valid_cmds = [
@@ -133,7 +126,7 @@ class PointCloudController(Node):
             elif user_input_split[0] == 'RUN_C':
                 self.daily_iter_ = int(user_input_split[1])
             elif user_input_split[0] in ['e', 'E', 'C_0', 'CONF', 'H_0']:
-                self.msg_.data = user_input_split[0]
+                self.msg_.data = user_input
                 self.input_pub_.publish(self.msg_)
             else:
                 self.get_logger().error('Not Implemeted!')
@@ -420,7 +413,10 @@ def main(args = None):
     # MCPC Python Node installer
     rclpy.init(args = args)
     node = PointCloudController()
-     
+    
+    spin_thread = threading.Thread(target=rclpy.spin, args=(node,))
+    spin_thread.start()
+
     try:
         while rclpy.ok():
             node.controller()
@@ -429,6 +425,7 @@ def main(args = None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+        spin_thread.join()
 
 if __name__ == "__main__":
     main()
