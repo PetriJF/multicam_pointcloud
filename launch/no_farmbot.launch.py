@@ -1,10 +1,8 @@
 import launch
 from launch import LaunchDescription, LaunchService
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import LaunchConfigurationEquals
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch.actions import TimerAction
 
 def generate_launch_description():
     mcpc_camera = LaunchConfiguration('mcpc_camera')
@@ -22,22 +20,15 @@ def generate_launch_description():
             description='Configuration file for the camera'
         ),
         
-        # Conditional node launch based on mcpc_camera value
+        # Launch the Luxonis OAK-D Lite camera node
         Node(
-            condition=LaunchConfigurationEquals('mcpc_camera', 'Intel Realsense D405'),
-            package='multicam_pointcloud',
-            executable='realsense_multicam_node',
-            name='realsense_multicam_node',
-            output='screen'
-        ),
-        Node(
-            condition=LaunchConfigurationEquals('mcpc_camera', 'Luxonis OAK-D Lite'),
             package='multicam_pointcloud',
             executable='luxonis_multicam_node.py',
             name='luxonis_multicam',
             output='screen'
         ),
 
+        # Launch the data collection node
         Node(
             package='multicam_pointcloud',
             executable='data_collection_node.py',
