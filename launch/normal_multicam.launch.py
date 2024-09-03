@@ -1,10 +1,8 @@
 import launch
 from launch import LaunchDescription, LaunchService
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import LaunchConfigurationEquals
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch.actions import TimerAction
 
 def generate_launch_description():
     return LaunchDescription([
@@ -30,6 +28,7 @@ def generate_launch_description():
             description='0 non-periodic, 1 - daily reading, 2 -morning and evening readings'
         ),
 
+        # Nodes that are always launched
         Node(
             package='farmbot_controllers',
             executable='param_conf_server',
@@ -73,16 +72,8 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # Conditional node launch based on mcpc_camera value
+        # Launch the Luxonis OAK-D Lite camera node
         Node(
-            condition=LaunchConfigurationEquals('mcpc_camera', 'Intel Realsense D405'),
-            package='multicam_pointcloud',
-            executable='realsense_multicam_node',
-            name='realsense_multicam_node',
-            output='screen'
-        ),
-        Node(
-            condition=LaunchConfigurationEquals('mcpc_camera', 'Luxonis OAK-D Lite'),
             package='multicam_pointcloud',
             executable='luxonis_multicam_node',
             name='luxonis_multicam',
@@ -97,7 +88,7 @@ def generate_launch_description():
 
         # Delay for 15 seconds
         TimerAction(
-            period=60.0,
+            period=15.0,
             actions=[
                 # Start uart_controller after the delay
                 Node(
