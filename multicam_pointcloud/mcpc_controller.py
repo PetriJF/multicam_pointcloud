@@ -6,7 +6,6 @@ from ament_index_python.packages import get_package_share_directory
 from std_msgs.msg import String
 
 import time
-import threading
 from datetime import datetime
 import math
 import os, yaml
@@ -37,9 +36,7 @@ class PointCloudController(Node):
         self.msg_ = String()
         self.final_sequence = ''
 
-        self.daily_iter_ = -1
-        self.timer_ = self.create_timer(60.0, self.start_reading)
-
+        self.auto_pub_ = self.create_publisher(String, 'mcpc_sequence', 10)
         self.input_pub_ = self.create_publisher(String, 'keyboard_topic', 10)
         self.sequencer_pub_ = self.create_publisher(String, 'sequencer', 10)
 
@@ -62,25 +59,6 @@ class PointCloudController(Node):
                     - 'CONF'
                     - 'H_0'
         ''')
-
-    def start_reading(self):
-        now = datetime.now().time()
-        current_time = now.strftime('%H:%M')
-        if self.daily_iter_ == -1:
-            pass
-        elif self.daily_iter_ == 2:
-            if current_time == '7:50' or current_time == '14:00':
-                self.msg_.data = 'H_0'
-                self.input_pub_.publish(self.msg_)
-                self.get_logger().info(f'{current_time} -- Homing the robot!')
-            elif current_time == '7:40' or current_time == '13:50':
-                self.msg_.data = 'C_0 Y'
-                self.input_pub_.publish(self.msg_)
-                self.get_logger().info(f'{current_time} -- Calibrating the Y-Axis!')
-            elif current_time == '8:00' or current_time == '14:10':
-                self.msg_.data = self.final_sequence
-                self.sequencer_pub_.publish(self.msg_)
-                self.get_logger().info(f'{current_time} -- Running the 3-Camera Imager sequence!')
 
     def controller(self):
         valid_cmds = [
@@ -127,7 +105,9 @@ class PointCloudController(Node):
                 self.sequencer_pub_.publish(self.msg_)
                 self.get_logger().info('Running the 3-Camera Imager sequence!')
             elif user_input_split[0] == 'RUN_C':
-                self.daily_iter_ = int(user_input_split[1])
+                self.msg_.data = self.final_sequence
+                self.auto_pub_.publish(self.msg_)
+                self.get_logger().info('Sent sequence to autonomous controller')
             elif user_input_split[0] in ['e', 'E', 'C_0', 'CONF', 'H_0']:
                 self.msg_.data = user_input
                 self.input_pub_.publish(self.msg_)
@@ -417,9 +397,6 @@ def main(args = None):
     rclpy.init(args = args)
     node = PointCloudController()
     
-    spin_thread = threading.Thread(target=rclpy.spin, args=(node,))
-    spin_thread.start()
-
     try:
         while rclpy.ok():
             node.controller()
@@ -428,7 +405,6 @@ def main(args = None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
-        spin_thread.join()
 
 if __name__ == "__main__":
     main()

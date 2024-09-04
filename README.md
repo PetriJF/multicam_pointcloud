@@ -18,7 +18,7 @@ Both of these implementations are assuming you are using our MCPC 3D printed rig
 
 First, run the alternative launch file (runs all the normal nodes, except for the standard camera one), in addition to the luxonis imaging node. We recommend not saving the images on the RPi's SDCard, as it can fill up fast if you are taking 4K images. In our experiments we are sending them to a NAS, but other methods can be also used (e.g. if you are using the RPi5, you can attach an SSD and save them locally).
 ``` bash
-ros2 launch multicam_pointcloud normal_multicam.launch.py image_save_path:="YOUR_IMAGE_FOLDER"
+ros2 launch multicam_pointcloud standard_multicam.launch.py image_save_path:="YOUR_IMAGE_FOLDER"
 ```
 
 Run the MCPC Controller. This controller is used to send all the commands to the different nodes that are launched. It includes some standard commands (e.g. e, H_0 and C_0) but it also contains the sequence generation code for the imaging (Note that the plants need to be mapped in the map_handler in order for the MCPC Controller to be able to generate a sequence).
