@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "data_collection_node = multicam_pointcloud.data_collector:main",
+            "autonomous_node = multicam_pointcloud.autonomous:main",
             "luxonis_multicam_node = multicam_pointcloud.luxonis_multicam:main",
             "mcpc_node = multicam_pointcloud.mcpc_controller:main"
         ],
