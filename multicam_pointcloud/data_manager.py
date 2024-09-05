@@ -67,14 +67,6 @@ class CamDataManager():
  
         # Create subscriptions for image topics
         self.cam_ids = self.cam_config_data['camera_ids']
-        # for cam_id in self.cam_ids:
-        #     image_topic_type = Image if self.camera_used_ == 'Intel Realsense D405' else ImageMessage
-        #     self.create_subscription(image_topic_type, f'rgb_{cam_id}', self.rgb_callback_factory(cam_id), 10)
-        #     self.create_subscription(image_topic_type, f'mono_{cam_id}', self.mono_callback_factory(cam_id), 10)
-        #     self.create_subscription(image_topic_type, f'depth_{cam_id}', self.depth_callback_factory(cam_id), 10)
-        #     self.get_logger().info(f'Initializing Topics /rgb_{cam_id}, /mono_{cam_id} and /depth_{cam_id}')
- 
-        # UART Rx Subscriber
         self.uart_rx_sub_ = self.node_.create_subscription(String, 'uart_receive', self.uart_feedback_callback, 10)
  
         self.node_.get_logger().info("CamDataManager node has been initialized")
@@ -125,39 +117,6 @@ class CamDataManager():
             self.depth_images[cam_id] = cv_image
             self.save_image(cam_id, 'depth', focus=focus)
 
-
-    # def rgb_callback_factory(self, cam_id):
-    #     def rgb_callback(msg):
-    #         self.node_.get_logger().info(f'RGB image received from camera {cam_id}')
-    #         if isinstance(msg, Image):
-    #             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-    #             self.rgb_images[cam_id] = cv_image
-    #             self.save_image(cam_id, 'rgb')
-    #         elif isinstance(msg, ImageMessage):
-    #             cv_image = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
-    #             self.rgb_images[cam_id] = cv_image
-    #             self.save_image(cam_id, 'rgb', focus=msg.focus)
-    #         else:
-    #             self.node_.get_logger().warn(f"Unsupported message type for camera {cam_id}")
-    #             return
- 
-    #     return rgb_callback
- 
-    # def mono_callback_factory(self, cam_id):
-    #     def mono_callback(msg):
-    #         self.node_.get_logger().info(f'Mono image received from camera {cam_id}')
-    #         self.mono_images[cam_id] = self.bridge.imgmsg_to_cv2(msg.image, "mono8")
-    #         self.save_image(cam_id, 'mono', focus=msg.focus)
- 
-    #     return mono_callback
-   
-    # def depth_callback_factory(self, cam_id):
-    #     def depth_callback(msg):
-    #         self.node_.get_logger().info(f'Depth image received from camera {cam_id}')
-    #         self.depth_images[cam_id] = self.bridge.imgmsg_to_cv2(msg.image, "16UC1")
-    #         self.save_image(cam_id, 'depth', focus=msg.focus)
- 
-    #     return depth_callback
  
     def save_image(self, cam_id, img_type, focus: int = -1):
         self.node_.get_logger().info(f'Saving {img_type} image from camera {cam_id}')
@@ -166,22 +125,22 @@ class CamDataManager():
         # Get camera configuration
         cam_config = self.get_camera_config(cam_id)
  
-        # Get robot position and offsets
-        x = self.cur_x_ + cam_config['offset_x']
-        y = self.cur_y_ + cam_config['offset_y']
-        z = self.cur_z_ + cam_config['offset_z']
- 
         # Get rotation
         rx = cam_config['rx']
         ry = cam_config['ry']
         rz = 0 if self.servo_curr_pos == self.servo_0_pos else 180
+
+        # Get robot position and offsets
+        x = self.cur_x_ + cam_config['offset_x'] * (-1 if rz == 180 else 0)
+        y = self.cur_y_ + cam_config['offset_y']
+        z = self.cur_z_ + cam_config['offset_z']
  
         # Timestamp
         now = datetime.now()
         timestamp = now.strftime("%d_%m_%Y_%H_%M_%S")
  
         # File type
-        file_type = 'png'# if self.camera_used_ == 'Intel Realsense D405' else 'jpeg'
+        file_type = 'png'
  
         # Focus distance
         focus_dist = '' if focus == -1 else 'stereo_disparity' if focus == -9 else 'mono_left' if focus == -10 else 'mono_right' if focus == -11 else f'_{focus}'
